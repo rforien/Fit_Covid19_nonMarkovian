@@ -53,28 +53,28 @@ fit.fit_lockdown('2020-05-10')
 
 fit.plot_fit()
 fit.axes.set_title('Cumulative and daily hospital deaths in mainland France')
-'''
+
 #fit.compute_SIR(3.5, N_france, 60)
 #fit.plot_SIR()
-
+'''
 
 IdF = deaths[IDF].sum(axis=1)
 IdF = pd.DataFrame(IdF, columns = ['deces'])
 #IdF['daily'] = np.concatenate(([0], np.diff(IdF['deces'])))
 
-fit_idf = lockdown.Fitter(IdF, '2020-03-18', 23)
+fit_idf = lockdown.Fitter(IdF, '2020-03-18', 21)
 
-fit_idf.fit_init('2020-03-18', '2020-03-25')
+fit_idf.fit_init('2020-03-19', '2020-03-26')
 fit_idf.fit_lockdown('2020-05-10')
 
-#fit_idf.plot_fit()
-#fit_idf.axes.set_title('Cumulative and daily hospital deaths in Ile de France')
+fit_idf.plot_fit()
+fit_idf.axes.set_title('Cumulative and daily hospital deaths in Ile de France')
 
-lockdown_length = 55
+lockdown_length = 100
 R0_after = 1.2
 f = .006
-delays = np.array([[10, .17], [12.5, .18], [15, .19], [17.5, .19], [20, .17], [22.5, .1]])
-#delays = np.array([[10, .3], [20, .7]])
+#delays = np.array([[10, .17], [12.5, .18], [15, .19], [17.5, .19], [20, .17], [22.5, .1]])
+delays = np.array([[10, .3], [20, .7]])
 
 #alpha = 2.
 #x = np.linspace(0,1,50)
@@ -94,20 +94,21 @@ delays = np.array([[10, .17], [12.5, .18], [15, .19], [17.5, .19], [20, .17], [2
 I_dist = np.array([[7, .8], [14, .2]])
 g = np.sum(I_dist[:,1]*I_dist[:,0])
 
-EI_dist = np.array([[2, 7, .8], [2, 11, .2]])
+EI_dist = np.array([[3, 7, .9], [3, 14, .1]])
 
-#sir = lockdown.SIR_lockdown_mixed_delays(N_idf, fit_idf.r, fit_idf.rE, f, g, delays)
-sir = lockdown.SIR_nonMarkov(N_idf, fit_idf.r, fit_idf.rE, f, I_dist, delays)
-#sir = lockdown.SEIR_nonMarkov(N_idf, fit_idf.r, fit_idf.rE, f, EI_dist, delays)
+#sir = lockdown.SEIR_lockdown_mixed_delays(N_idf, fit_idf.r, fit_idf.rE, f, g, 3, delays)
+#sir = lockdown.SIR_nonMarkov(N_idf, fit_idf.r, fit_idf.rE, f, I_dist, delays)
+sir = lockdown.SEIR_nonMarkov(N_idf, fit_idf.r, fit_idf.rE, f, EI_dist, delays)
 sir.calibrate(fit_idf.deaths_at_lockdown())
 #sir.run(300, record = True)
 sir.run_full(lockdown_length, 0, R0_after)
-sir.plot(S = False)
+sir.plot(S = True)
 sir.ax.set_title('Predicted epidemic in Ile de France\ncase fatality rate: %.1f%%' % (100*sir.f))
 sir.compute_deaths()
 sir.plot_deaths_fit(fit_idf.data)
 sir.fig.suptitle('Predicted and observed deaths in Ile de France')
-#sir.dfit_axs[0].set_yscale('log')
+sir.dfit_axs[1].set_yscale('log')
+sir.dfit_axs[1].plot(sir.times, sir.daily_deaths[-1]*np.exp(fit_idf.rE*(sir.times-sir.times[-1])))
 
 '''
 NordEst = deaths[GrandEst + HautsdeFrance].sum(axis = 1)

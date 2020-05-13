@@ -17,7 +17,7 @@ rE = -.06
 f = .005
 deaths_at_lockdown = 50
 
-lockdown_length = 200
+lockdown_length = 55
 
 delay = 15
 delay_dist = np.array([[delay, 1]])
@@ -27,7 +27,7 @@ I_dist = EI_dist[:,1:]
 incubation_time = np.sum(EI_dist[:,0]*EI_dist[:,2])
 generation_time = np.sum(EI_dist[:,1]*EI_dist[:,2])
 
-
+'''
 sir_markov = lockdown.SIR_lockdown_mixed_delays(N, r, rE, f, generation_time, delay_dist)
 seir_markov = lockdown.SEIR_lockdown_mixed_delays(N, r, rE, f, generation_time, incubation_time, delay_dist)
 sir_nonmarkov = lockdown.SIR_nonMarkov(N, r, rE, f, I_dist, delay_dist)
@@ -38,12 +38,12 @@ names = ['Markovian SIR', 'Markovian SEIR', 'non-Markovian SIR', 'non-Markovian 
 lstyles = ['solid', 'dashed', 'dashdot', (0, (3, 1, 1, 1, 1, 1))]
 
 
-for m in models:
+for (i,m) in enumerate(models):
     print(names[i])
     m.calibrate(deaths_at_lockdown)
     m.run_full(lockdown_length, 0, 1)
     m.compute_deaths()
-
+'''
 
 fig, axs = plt.subplots(1,2, dpi=200, figsize = (13,4.5))
 
@@ -51,8 +51,8 @@ for (i,m) in enumerate(models):
     axs[0].plot(m.times_death, m.deaths, label = names[i], linestyle = lstyles[i])
     axs[1].plot(1 + np.arange(np.size(m.daily_deaths)), m.daily_deaths, label = names[i], linestyle = lstyles[i])
 
-start = 0
-end = 300
+start = 50
+end = 100
 
 axs[0].legend(loc='best')
 axs[0].set_yscale('log')
@@ -64,6 +64,6 @@ axs[1].set_xlabel('time (days)')
 axs[0].set_xlim((start, end))
 axs[1].set_xlim((start, end))
 
-axs[1].plot(sir_markov.times_death, 1e3*np.exp(rE*sir_markov.times_death))
-#axs[0].set_ylim((4e3, 5e4))
-#axs[1].set_ylim((1e2, 8e3))
+#axs[1].plot(sir_markov.times_death, 1e3*np.exp(rE*sir_markov.times_death))
+axs[0].set_ylim((2.5e3, 1.5e4))
+axs[1].set_ylim((1e1, 2e3))

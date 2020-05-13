@@ -38,5 +38,3 @@ fit_idf_adm.fit_lockdown('2020-05-03')
 
 fit_idf_adm.plot_fit()
 fit_idf_adm.axes.set_title('Hospitalisations en Ile de France')
-
-print(fit_idf.rE)

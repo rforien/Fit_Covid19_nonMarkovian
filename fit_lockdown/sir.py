@@ -148,6 +148,7 @@ class SIR_lockdown(SIR):
         assert hasattr(self, 'lockdown_time')
         print('R0 prior to lockdown: %.2f' % self.R0())
         self.run(self.lockdown_time, record = True)
+        print('State at the start of lockdown: ', self.Z)
         self.l = self.contact_rate(self.rE)/self.Z[0]
 #        self.l = self.contact_rate(self.rE)
         print('R0 during lockdown: %.2f' % self.R0())
@@ -166,8 +167,9 @@ class SIR_lockdown(SIR):
             ymax = np.max(self.traj[:,1:])
         if hasattr(self, 'lockdown_length'):
             self.ax.vlines(self.lockdown_time, 0, ymax, label = 'lockdown')
-            self.ax.vlines(self.lockdown_time + self.lockdown_length, 0, ymax, 
-                           label = 'easing of lockdown, $R_0$ = %.1f' % self.R0(), linestyle = 'dotted')
+            if self.times[-1] > self.lockdown_time + self.lockdown_length:
+                self.ax.vlines(self.lockdown_time + self.lockdown_length, 0, ymax, 
+                               label = 'easing of lockdown, $R_0$ = %.1f' % self.R0(), linestyle = 'dotted')
             self.ax.legend(loc='best')
     
     def compute_deaths(self):
@@ -245,7 +247,7 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
         self.dfit_axs[1].plot(1+np.arange(np.size(self.daily_deaths)), self.daily_deaths, label = 'predicted deaths')
         self.dfit_axs[1].plot(observed_interval, data['daily'].values, label = 'observed deaths', linestyle = 'dashdot')
         self.dfit_axs[1].legend(loc='best')
-        self.dfit_axs[1].set_yscale('log')
+#        self.dfit_axs[1].set_yscale('log')
 
 class SEIR_lockdown_mixed_delays(SIR_lockdown_mixed_delays, SEIR_lockdown):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
