@@ -10,26 +10,37 @@ import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import pandas as pd
-
-from . import sir
+import scipy.optimize as optim
+import datetime as date
 
 class Fitter(object):
+    date_format = '%Y-%m-%d'
+    
     def __init__(self, cumul, lockdown_date, delay):
-        assert lockdown_date in cumul.index
+        self.lockdown_date = date.datetime.strptime(lockdown_date, self.date_format)
         assert delay >= 0 and type(delay)==int
         if isinstance(cumul, pd.DataFrame):
             self.data = cumul
             self.data.columns = ['cumul']
         elif isinstance(cumul, pd.Series):
-            self.data = pd.DataFrame(cumul, columns = ['cumul'])
+            self.data = pd.DataFrame(cumul)
+            self.data.columns = ['cumul']
         else:
             assert False, 'cumul should be either a Series or a DataFrame.'
-        self.lockdown_index = int(np.argwhere(self.data.index == lockdown_date))
-        self.delay = delay
+        self.n = np.size(self.data['cumul'].values)
+#        self.lockdown_index = int(np.argwhere(self.data.index == lockdown_date))
+        self.delay = date.timedelta(days = delay)
         self._compute_daily()
         
     def _compute_daily(self):
         self.data['daily'] = np.concatenate(([0], np.diff(self.data['cumul'].values)))
+    
+    def average_daily(self, d = 3):
+        self.data['averaged'] = np.zeros(self.n)
+        self.data['averaged'].values[d:-d] = (self.data['cumul'].values[2*d:] - self.data['cumul'].values[:-2*d])/(2*d)
+        for i in np.arange(d):
+            self.data['averaged'].values[i] = (self.data['cumul'].values[i+d] - self.data['cumul'].values[0])/(i+d)
+            self.data['averaged'].values[self.n-i-1] = (self.data['cumul'].values[-1] - self.data['cumul'].values[-(d+i)])/(i+d)
     
     def fit_init(self, start, end):
         assert start in self.data.index
@@ -39,56 +50,84 @@ class Fitter(object):
         self.regression_init = stats.linregress(x, y)
         self.r = self.regression_init.slope
         self.index_init = self.data[start:end].index
+        self.n_init = np.size(self.index_init)
+        self.date_init_fit = date.datetime.strptime(start, self.date_format)
+    
+#    def _fit_lockdown(self, end):
+#        assert end in self.data.index
+#        self.average_daily()
+#        start = self.data.index[self.lockdown_index + self.delay]
+#        y = np.log(self.data[start:end]['averaged'].values)
+#        x = np.arange(np.size(y))
+#        self.regression_lockdown = stats.linregress(x, y)
+#        self.rE = self.regression_lockdown.slope
+#        self.index_lockdown = self.data[start:end].index
     
     def fit_lockdown(self, end):
         assert end in self.data.index
-        start = self.data.index[self.lockdown_index + self.delay]
-        y = np.log(self.data[start:end]['daily'].values)
-        x = np.arange(np.size(y))
-        self.regression_lockdown = stats.linregress(x, y)
-        self.rE = self.regression_lockdown.slope
-        self.index_lockdown = self.data[start:end].index
+        self.end_lock = end
+        self.start_lock = (self.lockdown_date + self.delay).strftime(self.date_format)
+        assert self.start_lock in self.data.index
+        self.n_lock = np.size(self.data[self.start_lock:self.end_lock]['cumul'].values)
+        self.N0 = self.data['cumul'][self.start_lock]
+        self.scale = (self.data['cumul'][self.end_lock] - self.data['cumul'][self.start_lock])/self.n_lock
+        init_params = np.array([.1, -1])
+        self.result_lockdown = optim.minimize(self._error, init_params)
+        self.fit_params = self.result_lockdown.x
+        self.rE = self.fit_params[0]
+        self.index_lockdown = self.data[self.start_lock:self.end_lock].index
     
-#    def compute_Re(self):
-#        assert hasattr(self, 'regression_init') and hasattr(self, 'regression_lockdown')
-#        self.RE1 = 1 + (self.rE/self.r)*(self.R0 - 1)
-#        self.RE2 = self.R0**(self.rE/self.r)
-#    
-#    def plot_Re(self):
-#        assert hasattr(self, 'regression_init') and hasattr(self, 'regression_lockdown')
-#        r_values = np.linspace(self.R0[0], self.R0[1], 100)
-#        RE1 = 1 + (self.rE/self.r)*(r_values-1)
-#        RE2 = r_values**(self.rE/self.r)
-#        plt.figure(dpi = 200)
-#        self.ax_RE = plt.axes()
-#        self.ax_RE.plot(r_values, RE1, label = '$1+(r_E/r)(R_0-1)$')
-#        self.ax_RE.plot(r_values, RE2, label = '$R_0^{r_E/r}$')
-#        self.ax_RE.set_xlabel('$R_0$')
-#        self.ax_RE.set_title('Possible values of $R_E$ during lockdown')
-#        self.ax_RE.legend(loc='best')
+    def _error(self, params):
+        y = self.N0 + self.scale*params[1]*(np.exp(params[0]*np.arange(self.n_lock))-1)
+        x = self.data[self.start_lock:self.end_lock]['cumul'].values
+#        print(x)
+#        print(y)
+        E = np.sum(np.abs(1-y/x)**2)
+#        print(params, E)
+        return E
     
-    def plot_fit(self):
+    def best_fit_lock_cumul(self):
+        assert hasattr(self, 'fit_params')
+        return self.N0 + self.scale*self.fit_params[1]*(np.exp(self.fit_params[0]*np.arange(self.n_lock))-1)
+    
+    def best_fit_lock_daily(self):
+        assert hasattr(self, 'fit_params')
+        return self.scale*self.fit_params[1]*self.fit_params[0]*np.exp(self.fit_params[0]*np.arange(self.n_lock))
+    
+    def best_fit_init_cumul(self):
+        assert hasattr(self, 'regression_init')
+        return np.exp(self.regression_init.intercept + self.r*np.arange(self.n_init))
+    
+    def best_fit_init_daily(self):
+        assert hasattr(self, 'regression_init')
+        return self.r*np.exp(self.regression_init.intercept + self.r*np.arange(self.n_init))
+    
+    
+    def plot_fit(self, tick_interval = 7):
+        assert type(tick_interval) == int and tick_interval > 0
         plt.figure(dpi = 200, figsize = (10,5))
         self.axes = plt.axes()
         self.axes.plot(self.data['cumul'], label = 'cumulative')
         self.axes.plot(self.data['daily'], label = 'daily')
         if hasattr(self, 'regression_init'):
-            n_init = np.size(self.index_init)
-            y_init = np.exp(self.regression_init.intercept + self.r*np.arange(n_init))
-            self.axes.plot(self.index_init, y_init, label = '$r$ = %.3f' % self.r, linestyle = 'dashdot')
-        if hasattr(self, 'regression_lockdown'):
-            n_lockdown = np.size(self.index_lockdown)
-            y_lockdown = np.exp(self.regression_lockdown.intercept + self.rE*np.arange(n_lockdown))
-            self.axes.plot(self.index_lockdown, y_lockdown, label = '$r_E$ = %.3f' % self.rE, linestyle = 'dashdot')
+            p = self.axes.plot(self.index_init, self.best_fit_init_daily(), label = '$r$ = %.3f' % self.r, linestyle = 'dashdot')
+            self.axes.plot(self.index_init, self.best_fit_init_cumul(), linestyle = 'dashdot', color = p[0].get_color())
+#        if hasattr(self, 'regression_lockdown'):
+#            n_lockdown = np.size(self.index_lockdown)
+#            y_lockdown = np.exp(self.regression_lockdown.intercept + self.rE*np.arange(n_lockdown))
+#            self.axes.plot(self.index_lockdown, y_lockdown, label = '$r_E$ = %.3f' % self.rE, linestyle = 'dashdot')
+        if hasattr(self, 'result_lockdown'):
+            p = self.axes.plot(self.index_lockdown, self.best_fit_lock_daily(), label = '$r_E$ = %.3f' % self.rE, linestyle = 'dashdot')
+            self.axes.plot(self.index_lockdown, self.best_fit_lock_cumul(), linestyle = 'dashdot', color = p[0].get_color())
         self.axes.set_yscale('log')
         self.axes.legend(loc='best')
-        self.axes.set_xticks(self.data.index[0::7])
-        self.axes.set_xticklabels(self.data.index[0::7])
+        self.axes.set_xticks(self.data.index[0::tick_interval])
+        self.axes.set_xticklabels(self.data.index[0::tick_interval])
         self.axes.tick_params(axis='x', labelsize=9)
     
     def deaths_at_lockdown(self):
         assert hasattr(self, 'regression_init')
-        t = self.lockdown_index - int(np.argwhere(self.data.index == self.index_init[0]))
+        t = (self.lockdown_date - self.date_init_fit).days
         return np.exp(self.regression_init.intercept + self.r*t)
         
         

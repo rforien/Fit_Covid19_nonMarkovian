@@ -8,6 +8,7 @@ Created on Mon Apr 27 18:44:32 2020
 
 import numpy as np
 import matplotlib.pyplot as plt
+import datetime as date
 
 class SIR(object):
 #    e = np.array([-1, 1])
@@ -113,6 +114,8 @@ class SEIR(SIR):
         self.ax.legend(loc = 'best')
 
 class SIR_lockdown(SIR):
+    date_format = '%Y-%m-%d'
+    
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, generation_time, delay):
         print('SIR_lockdown.__init__')
         assert N > 0
@@ -135,8 +138,9 @@ class SIR_lockdown(SIR):
         assert R0 > 0
         return R0*self.g**-1
     
-    def calibrate(self, deaths_lockdown, I0 = 1):
+    def calibrate(self, deaths_lockdown, lockdown_date, I0 = 1):
         assert I0 > 0 and deaths_lockdown > 0
+        self.lockdown_date = date.datetime.strptime(lockdown_date, self.date_format)
         self.lockdown_time = self.delay + np.log(deaths_lockdown/(self.f*I0))/self.r
         self.Z = np.concatenate(([1-I0/self.N], I0/self.N*self.lead_eigen_vect()))
     
@@ -149,8 +153,8 @@ class SIR_lockdown(SIR):
         print('R0 prior to lockdown: %.2f' % self.R0())
         self.run(self.lockdown_time, record = True)
         print('State at the start of lockdown: ', self.Z)
-        self.l = self.contact_rate(self.rE)/self.Z[0]
-#        self.l = self.contact_rate(self.rE)
+#        self.l = self.contact_rate(self.rE)/self.Z[0]
+        self.l = self.contact_rate(self.rE)
         print('R0 during lockdown: %.2f' % self.R0())
         self.run(lockdown_length, record = True)
         print('State at the end of lockdown: ', self.Z)
@@ -176,8 +180,7 @@ class SIR_lockdown(SIR):
         assert hasattr(self, 'traj')
         self.times_death = self.times+self.delay
         self.deaths = self.f*self.N*(1-self.traj[:,0])
-        daily = self.deaths[np.mod(self.times,1)==0]
-        self.daily_deaths = np.diff(daily)
+        self.daily_deaths = np.concatenate(([0], np.diff(self.deaths)/np.diff(self.times_death)))
 
 class SEIR_lockdown(SIR_lockdown, SEIR):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, generation_time, delay, incubation_time):
@@ -213,11 +216,10 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
         assert type(dim) == int
         return np.size(dist, axis = 1) == dim + 1 and np.abs(np.sum(dist[:,-1])-1) < 1e-8 and np.min(dist) >= 0
     
-    def calibrate(self, deaths_lockdown, I0 = 1):
-        assert I0 > 0 and deaths_lockdown > 0
+    def calibrate(self, deaths_lockdown, lockdown_date, I0 = 1):
+        super().calibrate(deaths_lockdown, lockdown_date, I0)
         denom = np.sum(self.delay_dist[:,1]*np.exp(-self.r*self.delay_dist[:,0]))
         self.lockdown_time = np.log(deaths_lockdown/(self.f*I0*denom))/self.r
-        self.Z = np.concatenate(([1-I0/self.N], I0/self.N*self.lead_eigen_vect()))
     
     def shift(self, delay):
         return np.argmax(self.times > delay)-1
@@ -230,23 +232,26 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
             i = self.shift(a[0])
             time_range = np.arange(i,np.size(self.times))
             self.deaths[time_range] += self.f*self.N*a[1]*(1-self.traj[time_range-i,0])
-        day = self.shift(1)
-        daily = self.deaths[np.mod(np.arange(np.size(self.times)),day)==0]
-        self.daily_deaths = np.diff(daily)
+        self.daily_deaths = np.concatenate(([0], np.diff(self.deaths)/np.diff(self.times)))
     
     def plot_deaths_fit(self, data):
         assert hasattr(self, 'deaths')
-        self.fig, self.dfit_axs = plt.subplots(2,1,sharex=True,dpi=200)
-        observed_interval = self.lockdown_time + np.arange(np.size(data['cumul'].values))
-        self.dfit_axs[0].set_ylabel('Cumulative deaths')
+        self.fig, self.dfit_axs = plt.subplots(1,2,dpi=200,figsize=(11,4))
+        data_start_date = date.datetime.strptime(data.index[0], self.date_format)
+        data_start_time = self.lockdown_time + (data_start_date - self.lockdown_date).days
+        observed_interval = data_start_time + np.arange(np.size(data.index))
+        self.dfit_axs[0].set_title('Cumulative deaths')
         self.dfit_axs[0].plot(self.times_death, self.deaths, label = 'predicted deaths')
         self.dfit_axs[0].plot(observed_interval, data['cumul'].values, label = 'observed deaths', linestyle = 'dashdot')
+        self.dfit_axs[0].vlines(self.lockdown_time, 0, np.max(self.deaths), label = 'Start of lockdown')
         self.dfit_axs[0].legend(loc='best')
-        self.dfit_axs[1].set_ylabel('Daily deaths')
+        self.dfit_axs[0].set_xlabel('Time (days)')
+        self.dfit_axs[1].set_title('Daily deaths')
         self.dfit_axs[1].set_xlabel('Time (days)')
-        self.dfit_axs[1].plot(1+np.arange(np.size(self.daily_deaths)), self.daily_deaths, label = 'predicted deaths')
+        self.dfit_axs[1].plot(self.times_death, self.daily_deaths, label = 'predicted deaths')
         self.dfit_axs[1].plot(observed_interval, data['daily'].values, label = 'observed deaths', linestyle = 'dashdot')
-        self.dfit_axs[1].legend(loc='best')
+        self.dfit_axs[1].vlines(self.lockdown_time, 0, np.max(self.daily_deaths), label = 'Start of lockdown')
+#        self.dfit_axs[1].legend(loc='best')
 #        self.dfit_axs[1].set_yscale('log')
 
 class SEIR_lockdown_mixed_delays(SIR_lockdown_mixed_delays, SEIR_lockdown):

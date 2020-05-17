@@ -16,7 +16,7 @@ import scipy.special as sp
 #sys.path.append('/home/raphael/Recherche/Covid19')
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-10-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-13-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -58,23 +58,46 @@ fit.axes.set_title('Cumulative and daily hospital deaths in mainland France')
 #fit.plot_SIR()
 '''
 
-IdF = deaths[IDF].sum(axis=1)
+IdF = deaths[GrandEst].sum(axis=1)
 IdF = pd.DataFrame(IdF, columns = ['deces'])
 #IdF['daily'] = np.concatenate(([0], np.diff(IdF['deces'])))
 
-fit_idf = lockdown.Fitter(IdF, '2020-03-18', 21)
+fit_idf = lockdown.Fitter(IdF, '2020-03-16', 21)
 
 fit_idf.fit_init('2020-03-19', '2020-03-26')
-fit_idf.fit_lockdown('2020-05-10')
+fit_idf.fit_lockdown('2020-05-13')
 
-fit_idf.plot_fit()
-fit_idf.axes.set_title('Cumulative and daily hospital deaths in Ile de France')
+#fit_idf.plot_fit()
+#fit_idf.axes.set_title('Cumulative and daily hospital deaths in Ile de France')
 
-lockdown_length = 100
+lockdown_length = 55
 R0_after = 1.2
-f = .006
-#delays = np.array([[10, .17], [12.5, .18], [15, .19], [17.5, .19], [20, .17], [22.5, .1]])
-delays = np.array([[10, .3], [20, .7]])
+f = .005
+#delays = np.array([[21, 1]])
+#delays = np.array([[12, .17], [14.5, .18], [15, .19], [17.5, .19], [20, .17], [22.5, .1]])
+delays = np.array([[10, .1], [17, .2], [18, .2], [23, .25], [25, .25]])
+#n = 50
+#scale = 20
+##delays = np.transpose(np.vstack((np.linspace(10, 21, n), 1./n*np.ones(n))))
+#
+#mu = 2.15
+#sigma = .93
+#p_short = .15
+#mean_short = .67
+#hosp_delay = 10
+#delay_values = np.exp(np.linspace(0, scale*np.log(30), n)/scale)-1
+#expo = np.diff(1-np.exp(-delay_values/mean_short))
+#expo = np.concatenate((expo, [1-np.sum(expo)]))
+#lognormal = np.diff(.5*(1+sp.erf((np.log(delay_values)-mu)/(np.sqrt(2)*sigma))))
+#lognormal = np.concatenate((lognormal, [1-np.sum(lognormal)]))
+#
+##print('mean ', np.sum(delay_values*lognormal))
+##print('mediane ', delay_values[np.argmax(np.cumsum(lognormal)>.5)])
+#
+#delay_density = p_short*expo + (1-p_short)*lognormal
+#
+#delays = np.transpose(np.vstack((hosp_delay + delay_values, delay_density)))
+
 
 #alpha = 2.
 #x = np.linspace(0,1,50)
@@ -91,24 +114,24 @@ delays = np.array([[10, .3], [20, .7]])
 #mode2[:,1] = modes[1,2]*beta[:,1]
 #I_dist = np.vstack((mode1, mode2))
 
-I_dist = np.array([[7, .8], [14, .2]])
-g = np.sum(I_dist[:,1]*I_dist[:,0])
+EI_dist = np.array([[3, 7, .8], [3, 14, .2]])
 
-EI_dist = np.array([[3, 7, .9], [3, 14, .1]])
+g = np.sum(EI_dist[:,2]*EI_dist[:,1])
+e = np.sum(EI_dist[:,2]*EI_dist[:,0])
 
-#sir = lockdown.SEIR_lockdown_mixed_delays(N_idf, fit_idf.r, fit_idf.rE, f, g, 3, delays)
+#sir = lockdown.SEIR_lockdown_mixed_delays(N_GE, fit_idf.r, fit_idf.rE, f, g, e, delays)
 #sir = lockdown.SIR_nonMarkov(N_idf, fit_idf.r, fit_idf.rE, f, I_dist, delays)
 sir = lockdown.SEIR_nonMarkov(N_idf, fit_idf.r, fit_idf.rE, f, EI_dist, delays)
-sir.calibrate(fit_idf.deaths_at_lockdown())
+sir.calibrate(fit_idf.deaths_at_lockdown(), '2020-03-16')
 #sir.run(300, record = True)
 sir.run_full(lockdown_length, 0, R0_after)
-sir.plot(S = True)
-sir.ax.set_title('Predicted epidemic in Ile de France\ncase fatality rate: %.1f%%' % (100*sir.f))
+#sir.plot(S = True)
+#sir.ax.set_title('Predicted epidemic in Ile de France\ncase fatality rate: %.1f%%' % (100*sir.f))
 sir.compute_deaths()
 sir.plot_deaths_fit(fit_idf.data)
 sir.fig.suptitle('Predicted and observed deaths in Ile de France')
-sir.dfit_axs[1].set_yscale('log')
-sir.dfit_axs[1].plot(sir.times, sir.daily_deaths[-1]*np.exp(fit_idf.rE*(sir.times-sir.times[-1])))
+#sir.dfit_axs[1].set_yscale('log')
+#sir.dfit_axs[1].plot(sir.times, sir.daily_deaths[-1]*np.exp(fit_idf.rE*(sir.times-sir.times[-1])))
 
 '''
 NordEst = deaths[GrandEst + HautsdeFrance].sum(axis = 1)

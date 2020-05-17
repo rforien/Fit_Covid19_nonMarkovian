@@ -27,7 +27,7 @@ I_dist = EI_dist[:,1:]
 incubation_time = np.sum(EI_dist[:,0]*EI_dist[:,2])
 generation_time = np.sum(EI_dist[:,1]*EI_dist[:,2])
 
-'''
+
 sir_markov = lockdown.SIR_lockdown_mixed_delays(N, r, rE, f, generation_time, delay_dist)
 seir_markov = lockdown.SEIR_lockdown_mixed_delays(N, r, rE, f, generation_time, incubation_time, delay_dist)
 sir_nonmarkov = lockdown.SIR_nonMarkov(N, r, rE, f, I_dist, delay_dist)
@@ -43,13 +43,13 @@ for (i,m) in enumerate(models):
     m.calibrate(deaths_at_lockdown)
     m.run_full(lockdown_length, 0, 1)
     m.compute_deaths()
-'''
+
 
 fig, axs = plt.subplots(1,2, dpi=200, figsize = (13,4.5))
 
 for (i,m) in enumerate(models):
     axs[0].plot(m.times_death, m.deaths, label = names[i], linestyle = lstyles[i])
-    axs[1].plot(1 + np.arange(np.size(m.daily_deaths)), m.daily_deaths, label = names[i], linestyle = lstyles[i])
+    axs[1].plot(m.times_death, m.daily_deaths, label = names[i], linestyle = lstyles[i])
 
 start = 50
 end = 100

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib import cm
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-10-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-13-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -42,12 +42,16 @@ Aquitaine = ['16', '17', '19', '23', '24', '33', '40', '47', '64', '79', '86', '
 Bourgogne = ['21', '25', '39', '58', '70', '71', '89', '90']
 Corse = ['2A', '2B']
 
+green_regions = PACA + RhoneAlpes + Occitanie + Bretagne + Loire + Normandie + Centre + Aquitaine + Bourgogne
 
-regions = [IDF, GrandEst, HautsdeFrance, RhoneAlpes, PACA, Occitanie, 
-           Loire, Centre, Aquitaine, Bourgogne]
-names = ['Ile de France', 'Grand Est', 'Hauts de France', 'Auvergne Rhone Alpes', 
-         "Provence Alpes Cote d'Azur", 'Occitanie', 'Loire Atlantique',  
-         'Centre Val de Loire', 'Nouvelle Aquitaine', 'Bourgogne Franche Comté']
+
+#regions = [IDF, GrandEst, HautsdeFrance, RhoneAlpes, PACA, Occitanie, 
+#           Loire, Centre, Aquitaine, Bourgogne, Corse]
+#names = ['Ile de France', 'Grand Est', 'Hauts de France', 'Auvergne Rhone Alpes', 
+#         "Provence Alpes Cote d'Azur", 'Occitanie', 'Loire Atlantique',  
+#         'Centre Val de Loire', 'Nouvelle Aquitaine', 'Bourgogne Franche Comté', 'Corse']
+regions = [IDF, GrandEst + HautsdeFrance, green_regions]
+names = ['Ile de France', 'Grand Est and Hauts-de-France', 'Green areas excluding Corsica']
 colors = [cm.tab20(x) for x in np.tile(np.linspace(0,1,10,endpoint=False), 2)]
 colors_fits = [cm.tab20(x + .05) for x in np.tile(np.linspace(0,1,10,endpoint=False),2)]
 

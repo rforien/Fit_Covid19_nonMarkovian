@@ -10,16 +10,17 @@ import pandas as pd
 import fit_lockdown as lockdown
 import numpy as np
 import matplotlib.pyplot as plt
+import time as time
 
 from matplotlib import cm
 
-data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-05-10-19h00.csv', delimiter = ';')
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-05-13-19h00.csv', delimiter = ';')
 
 # remove unused columns
 admissions = data_new.pivot(index = 'jour', columns = 'dep', values = 'incid_hosp')
 reanimations = data_new.pivot(index = 'jour', columns = 'dep', values = 'incid_rea')
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-10-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-13-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -30,7 +31,7 @@ deaths = data.pivot(index = 'jour', columns = 'dep', values = 'dc')
 
 overseas = ['971', '972', '973', '974', '976']
 # remove overseas
-deaths = deaths.drop(overseas, axis=1)
+deaths = deaths['2020-03-19':].drop(overseas, axis=1)
 admissions = np.cumsum(admissions.drop(overseas, axis = 1))
 reanimations = np.cumsum(reanimations.drop(overseas, axis = 1))
 
@@ -48,6 +49,7 @@ Aquitaine = ['16', '17', '19', '23', '24', '33', '40', '47', '64', '79', '86', '
 Bourgogne = ['21', '25', '39', '58', '70', '71', '89', '90']
 Corse = ['2A', '2B']
 
+green_regions = PACA + RhoneAlpes + Occitanie + Bretagne + Loire + Normandie + Centre + Aquitaine + Bourgogne
 
 regions = [IDF, GrandEst, HautsdeFrance, RhoneAlpes, PACA, Occitanie, 
            Loire, Centre, Aquitaine, Bourgogne, Bretagne, Normandie, Corse]
@@ -61,65 +63,62 @@ deaths_France = deaths.sum(axis=1)
 deaths_France = pd.DataFrame(deaths_France, columns = ['deces'])
 #deaths_France = pd.concat((deaths_early['2020-02-15':'2020-03-17'], deaths_France), axis = 0)
 
-#ad_France = admissions.sum(axis = 1)
-#rea_France = reanimations.sum(axis = 1)
-#
-#fit_d_France = lockdown.Fitter(deaths_France, '2020-03-18', 21)
-#fit_d_France.fit_lockdown('2020-05-10')
-#
-#fit_ad_france = lockdown.Fitter(ad_France, '2020-03-19', 13)
-#fit_ad_france.fit_lockdown('2020-05-10')
-#
-#fit_rea_france = lockdown.Fitter(rea_France, '2020-03-19', 15)
-#fit_rea_france.fit_lockdown('2020-05-10')
-#
-#plt.figure(dpi=200, figsize = (10,4))
-#axes = plt.axes()
-#axes.set_yscale('log')
-#
-#axes.plot(fit_d_France.data['daily'], label = 'new deaths ($r_E$ = %.3f)' % fit_d_France.rE)
-#axes.set_xticks(fit_d_France.data.index[0::7])
-#axes.set_xticklabels(fit_d_France.data.index[0::7])
-#
-#n = np.size(fit_d_France.index_lockdown)
-#y = np.exp(fit_d_France.regression_lockdown.intercept + fit_d_France.rE*np.arange(n))
-#axes.plot(fit_d_France.index_lockdown, y, linestyle = 'dashdot')
-#
-#axes.plot(fit_ad_france.data['daily'], label = 'new hospital admissions ($r_E$ = %.3f)' % fit_ad_france.rE)
-#n = np.size(fit_ad_france.index_lockdown)
-#y = np.exp(fit_ad_france.regression_lockdown.intercept + fit_ad_france.rE*np.arange(n))
-#axes.plot(fit_ad_france.index_lockdown, y, linestyle = 'dashdot')
-#
-#axes.plot(fit_rea_france.data['daily'], label = 'new ICU admissions ($r_E$ = %.3f)' % fit_rea_france.rE)
-#n = np.size(fit_rea_france.index_lockdown)
-#y = np.exp(fit_rea_france.regression_lockdown.intercept + fit_rea_france.rE*np.arange(n))
-#plt.plot(fit_rea_france.index_lockdown, y, linestyle = 'dashdot')
-#
-#axes.legend(loc='best')
-#axes.set_title('Decrease in hospital deaths, hospital admissions and\nICU admissions in mainland France under lockdown')
 
-data_names = ['hospital deaths', 'hospital admissions', 'ICU admissions']
+data_names = ['hospital admissions', 'ICU admissions', 'hospital deaths']
 
-def fit_lockdown(region, name):
-    fit_deaths = lockdown.Fitter(deaths[region].sum(axis=1), '2020-03-18', 21)
+ad_France = admissions.sum(axis = 1)
+rea_France = reanimations.sum(axis = 1)
+
+fit_d_France = lockdown.Fitter(deaths_France, '2020-03-19', 21)
+
+fit_ad_france = lockdown.Fitter(ad_France, '2020-03-19', 13)
+
+fit_rea_france = lockdown.Fitter(rea_France, '2020-03-19', 15)
+
+plt.figure(dpi=200, figsize = (10,4))
+axes = plt.axes()
+axes.set_yscale('log')
+
+for (i, fit) in enumerate([fit_ad_france, fit_rea_france, fit_d_France]):
+    fit.fit_lockdown('2020-05-13')
+    p = axes.plot(fit.data['daily'], label = 'new ' + data_names[i] + ' ($r_E$ = %.3f)' % fit.rE)
+    axes.plot(fit.index_lockdown, fit.best_fit_lock_daily(), linestyle = 'dashdot', color = p[0].get_color())
+
+axes.set_xticks(fit_d_France.data.index[0::7])
+axes.set_xticklabels(fit_d_France.data.index[0::7])
+axes.legend(loc='best')
+axes.set_title('Decrease in hospital deaths, hospital admissions and\nICU admissions in mainland France under lockdown')
+
+
+def fit_lockdown(region, name, plot = True):
+    fit_deaths = lockdown.Fitter(deaths[region].sum(axis=1), '2020-03-19', 21)
     fit_adm = lockdown.Fitter(admissions[region].sum(axis=1), '2020-03-19', 13)
     fit_rea = lockdown.Fitter(reanimations[region].sum(axis=1), '2020-03-19', 15)
     
-    plt.figure(dpi = 200, figsize = (10,4))
-    axes = plt.axes()
-    axes.set_yscale('log')
+    if plot:
+        plt.figure(dpi = 200, figsize = (10,4))
+        axes = plt.axes()
+        axes.set_yscale('log')
     
-    for (i, fit) in enumerate([fit_deaths, fit_adm, fit_rea]):
-        fit.fit_lockdown('2020-05-10')
-        n = np.size(fit.index_lockdown)
-        y = np.exp(fit.regression_lockdown.intercept + fit.rE*np.arange(n))
-        axes.plot(fit.data['daily'], label = 'new ' + data_names[i] + ' ($r_E$ = %.3f)' % fit.rE)
-        axes.plot(fit.index_lockdown, y, linestyle = 'dashdot')
+    for (i, fit) in enumerate([fit_adm, fit_rea, fit_deaths]):
+        fit.fit_lockdown('2020-05-13')
+#        fit.plot_fit()
+#        fit.axes.set_title(data_names[i])
+        if plot:
+            p = axes.plot(fit.data['daily'], label = 'new ' + data_names[i] + ' ($r_E$ = %.3f)' % fit.rE)
+            axes.plot(fit.index_lockdown, fit.best_fit_lock_daily(), linestyle = 'dashdot', color = p[0].get_color())
+        print(name + ', ' + data_names[i] + ', rE = %.3f' % fit.rE)
     
-    axes.set_xticks(fit.data.index[0::7])
-    axes.set_xticklabels(fit.data.index[0::7])
-    axes.legend(loc='best')
-    axes.set_title('Decrease in hospital deaths, hospital admissions and\nICU admissions in ' + name + ' under lockdown')
+    if plot:
+        axes.set_xticks(fit.data.index[0::7])
+        axes.set_xticklabels(fit.data.index[0::7])
+        axes.legend(loc='best')
+        axes.set_title('Decrease in hospital deaths, hospital admissions and\nICU admissions in ' + name + ' under lockdown')
 
-for (i, r) in enumerate(regions):
-    fit_lockdown(r, names[i])
+#fit_lockdown(IDF, 'Ile de France')
+#fit_lockdown(GrandEst + HautsdeFrance, 'Grand Est and Hauts-de-France')
+#fit_lockdown(green_regions, 'green areas excluding Corsica')
+
+#for (j, r) in enumerate(regions):
+#    fit_lockdown(r, names[j], plot = False)
+#    time.sleep(.01)

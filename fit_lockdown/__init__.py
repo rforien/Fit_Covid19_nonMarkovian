@@ -8,3 +8,4 @@ Created on Mon Apr 27 11:15:53 2020
 
 from .fit_lockdown import *
 from .sir import *
+from .fit_patches import *
