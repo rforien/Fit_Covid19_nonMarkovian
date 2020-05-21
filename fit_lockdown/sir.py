@@ -37,7 +37,7 @@ class SIR(object):
     n = 3
     
     def __init__(self, contact_rate, remission_rate):
-        print('SIR.__init__')
+#        print('SIR.__init__')
         self.l = contact_rate
         self.mu = remission_rate
         self.Z = np.concatenate(([1], np.zeros(self.n-1)))
@@ -96,7 +96,7 @@ class SEIR(SIR):
     n = 4
     
     def __init__(self, contact_rate, remission_rate, symptom_rate):
-        print('SEIR.__init__')
+#        print('SEIR.__init__')
         self.nu = symptom_rate
         if not hasattr(self, 'l'):
             SIR.__init__(self, contact_rate, remission_rate)
@@ -117,7 +117,7 @@ class SIR_lockdown(SIR):
     date_format = '%Y-%m-%d'
     
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, generation_time, delay):
-        print('SIR_lockdown.__init__')
+#        print('SIR_lockdown.__init__')
         assert N > 0
         self.N = float(N)
         assert case_fatality_rate > 0 and generation_time > 0 and delay > 0
@@ -152,7 +152,7 @@ class SIR_lockdown(SIR):
         assert hasattr(self, 'lockdown_time')
         print('R0 prior to lockdown: %.2f' % self.R0())
         self.run(self.lockdown_time, record = True)
-        print('State at the start of lockdown: ', self.Z)
+#        print('State at the start of lockdown: ', self.Z)
 #        self.l = self.contact_rate(self.rE)/self.Z[0]
         self.l = self.contact_rate(self.rE)
         print('R0 during lockdown: %.2f' % self.R0())
@@ -160,7 +160,7 @@ class SIR_lockdown(SIR):
         print('State at the end of lockdown: ', self.Z)
         self.l = self.contact_rate_R0(R0_after_lockdown)
         self.run(time_after_lockdown, record = True)
-        print('Final state: ', self.Z)
+#        print('Final state: ', self.Z)
         self.lockdown_length = lockdown_length
     
     def plot(self, S = True):
@@ -184,7 +184,7 @@ class SIR_lockdown(SIR):
 
 class SEIR_lockdown(SIR_lockdown, SEIR):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, generation_time, delay, incubation_time):
-        print('SEIR_lockdown.__init__')
+#        print('SEIR_lockdown.__init__')
         assert incubation_time > 0
         self.incubation_time = incubation_time
         if not hasattr(self, 'N'):
@@ -205,7 +205,7 @@ class SEIR_lockdown(SIR_lockdown, SEIR):
 class SIR_lockdown_mixed_delays(SIR_lockdown):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                  generation_time, delay_dist):
-        print('SIR_lockdown_mixed_delays.__init__')
+#        print('SIR_lockdown_mixed_delays.__init__')
         if not hasattr(self, 'N'):
             SIR_lockdown.__init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                               generation_time, 1)
@@ -232,7 +232,35 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
             i = self.shift(a[0])
             time_range = np.arange(i,np.size(self.times))
             self.deaths[time_range] += self.f*self.N*a[1]*(1-self.traj[time_range-i,0])
-        self.daily_deaths = np.concatenate(([0], np.diff(self.deaths)/np.diff(self.times)))
+        day = self.shift(1)
+        self.times_daily_deaths = self.times_death[day:]
+        self.daily_deaths = self.deaths[day:]-self.deaths[:-day]
+    
+    def compute_hosp(self, p_hosp, delay_hosp):
+        assert self.is_dist(delay_hosp) and p_hosp > 0 and p_hosp <= 1
+        record = False
+        if hasattr(self, 'deaths'):
+            record = True
+            _deaths = self.deaths
+            _death_times = self.times_death
+            _times_daily_deaths = self.times_daily_deaths
+            _daily_deaths = self.daily_deaths
+        _f = self.f
+        _delay_death = self.delay_dist
+        self.f = p_hosp
+        self.delay_dist = delay_hosp
+        self.compute_deaths()
+        self.times_hosp = self.times_death
+        self.hosp = self.deaths
+        self.times_daily_hosp = self.times_daily_deaths
+        self.daily_hosp = self.daily_deaths
+        self.f = _f
+        self.delay_dist = _delay_death
+        if record:
+            self.deaths = _deaths
+            self.daily_deaths = _daily_deaths
+            self.times_daily_deaths = _times_daily_deaths
+            self.times_death = _death_times
     
     def plot_deaths_fit(self, data):
         assert hasattr(self, 'deaths')
@@ -257,7 +285,7 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
 class SEIR_lockdown_mixed_delays(SIR_lockdown_mixed_delays, SEIR_lockdown):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                  generation_time, incubation_time, delay_dist):
-        print('SEIR_lockdown_mixed_delays.__init__')
+#        print('SEIR_lockdown_mixed_delays.__init__')
         SEIR_lockdown.__init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                                generation_time, 1, incubation_time)
         if not hasattr(self, 'delay_dist'):
@@ -267,7 +295,7 @@ class SEIR_lockdown_mixed_delays(SIR_lockdown_mixed_delays, SEIR_lockdown):
 class SIR_nonMarkov(SIR_lockdown_mixed_delays):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate,
                  infectious_period_dist, delay_dist):
-        print('SIR_nonMarkov.__init__')
+#        print('SIR_nonMarkov.__init__')
         assert self.is_dist(infectious_period_dist)
         self.I_dist = infectious_period_dist
         if not hasattr(self, 'delay_dist'):
@@ -370,7 +398,7 @@ class SIR_nonMarkov(SIR_lockdown_mixed_delays):
 class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown_mixed_delays):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                  EI_period_dist, delay_dist):
-        print('SEIR_nonMarkov.__init__')
+#        print('SEIR_nonMarkov.__init__')
         assert self.is_dist(EI_period_dist, dim = 2)
         self.EI_dist = EI_period_dist
         self.E_dist = self.EI_dist[:,0::2]
@@ -434,6 +462,7 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown_mixed_delays):
         self.t += dt
         self.l_traj[self.shift(self.t)] = self.l
         self.Z = [S, I, R, E]
+        
 
 #N = 12e6
 #r = .3

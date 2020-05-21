@@ -51,6 +51,10 @@ Corse = ['2A', '2B']
 
 Out = PACA + RhoneAlpes + Occitanie + Bretagne + Loire + Normandie + Centre + Aquitaine + Bourgogne
 
+France = deaths[Out + IDF + GrandEst + HautsdeFrance].sum(axis=1)
+France = pd.DataFrame(France, columns = ['deces'])
+France = pd.concat((deaths_early['2020-02-15':'2020-03-17'], France), axis = 0)
+
 N_out = N_france - N_idf - N_GE - N_HdF
 
 deaths_IDF = deaths[IDF].sum(axis=1)
@@ -65,5 +69,18 @@ admis_out = admissions[Out].sum(axis=1)
 admis_patches = pd.concat((admis_IDF, admis_GEHdF, admis_out), axis = 1)
 admis_patches.columns = deaths_patches.columns
 
+EI_dist = np.array([[3, 2, .2], [3, 7, .8]])
+#EI_dist = np.array([[2, 2, 1]])
+f = .005
+#delays = np.array([[21, 1]])
+delay_death = np.transpose(np.vstack((np.linspace(11, 25, 10), .1*np.ones(10))))
+delay_hosp = np.transpose(np.vstack((np.linspace(6, 20, 10), .1*np.ones(10))))
+#p_hosp = .023
+
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
+#fit_total.fit_data(np.array([0, 0]))
+fit_total.compute_sir(EI_dist, f, delay_death, delay_hosp, Markov = False)
+fit_total.plot_deaths_tot(France)
+fit_total.plot_deaths_hosp()
+fit_total.fig.suptitle('Predicted and observed deaths and hospital \nadmissions using the non-Markovian SEIR model')
