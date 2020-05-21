@@ -276,7 +276,7 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
         self.dfit_axs[0].set_xlabel('Time (days)')
         self.dfit_axs[1].set_title('Daily deaths')
         self.dfit_axs[1].set_xlabel('Time (days)')
-        self.dfit_axs[1].plot(self.times_death, self.daily_deaths, label = 'predicted deaths')
+        self.dfit_axs[1].plot(self.times_daily_deaths, self.daily_deaths, label = 'predicted deaths')
         self.dfit_axs[1].plot(observed_interval, data['daily'].values, label = 'observed deaths', linestyle = 'dashdot')
         self.dfit_axs[1].vlines(self.lockdown_time, 0, np.max(self.daily_deaths), label = 'Start of lockdown')
 #        self.dfit_axs[1].legend(loc='best')
@@ -318,65 +318,34 @@ class SIR_nonMarkov(SIR_lockdown_mixed_delays):
     def R0(self):
         return self.l*self.EI()
     
-    def _increase_R_init(self, t):
-        return self.d0*np.sum(self.I_dist[:,1]*(self.I_dist[:,0] > t)*np.exp(-self.r*(self.I_dist[:,0]-t)))
-    
-    def _increase_R(self, t):
-        I = 0
-        for [i, p] in self.I_dist:
-            if t < i:
-                pass
-            s = self.shift(t-i)
-            I += p*self.l_traj[s]*self.traj[s,0]*self.traj[s,1]
-        return I
-    
-    def _decay_init(self, t):
-        return self.l*np.sum(self.I_dist[:,1]*(t < self.I_dist[:,0])*
-                                        np.exp(self.r*(t-self.I_dist[:,0])))
-    
-    def _decay(self, t):
-        D = 0
-        for [d,p] in self.I_dist:
-            if t < d:
-                pass
-            s = self.shift(t-d)
-            D += self.l_traj[s]*p*self.traj[s,0]*np.exp(np.log(self.traj[s,1])-self._Z[1])
-        return D
-    
     def run(self, T, dt = .01, record = True):
         n = int(T/dt)
         if hasattr(self, 'times'):
-            self.t = self.times[-1]
-            self.offset = np.size(self.times)-1
-            self.l_traj = np.concatenate((self.l_traj, np.zeros(n)))
+            self.flux = np.concatenate((self.flux, np.zeros((n, self.n-1))))
         else:
-            self.t = 0
-            self.l_traj = np.zeros(n+1)
-            self._init_cst()
+            self.i = 0
+            self._init_flux(n, dt)
         super().run(T, dt, True)
-    
-    def _init_cst(self):
-        self.d0 = self.r/self.LaplaceI(self.r)
+        
+    def _init_flux(self, n, dt):
+        self.flux = np.zeros((n + int(np.max(self.I_dist[:,0])/dt), self.n-1))
+        for (I, p) in self.I_dist:
+            i = int(I/dt)
+            self.flux[0:i, 1] += self.Z[1]*p*self.l*np.exp(self.r*(dt*np.arange(i)-I))*dt
+        self.A = np.array([[-1, 0], [1, -1], [0, 1]])
     
     def _step(self, dt):
-        S = self._Z[0] - dt*self.l*self.Z[1]
-        I = self._Z[1] + dt*(self.l*self.Z[0] - self._decay_init(self.t)*np.exp(np.log(self.traj[0,1])-self._Z[1])
-                            - self._decay(self.t))
-        R = np.log(1-np.exp(S)-np.exp(I))
-        self.t += dt
-        self.l_traj[self.shift(self.t)] = self.l
-        self._Z = [S, I, R]
-    
-    def __step(self, dt):
-        S = self.Z[0]*np.exp(-dt*self.l*self.Z[1])
-        R = self.Z[2] + dt*self._increase_R_init(self.t)*self.traj[0,2] + dt*self._increase_R(self.t)
-        I = 1-S-R
-        self.Z = [S, I, R]
+        ds = self.Z[0]*(1 - np.exp(-self.l*dt*self.Z[1]))
+        self.flux[self.i,0] = ds
+        for (I, p) in self.I_dist:
+            self.flux[self.i+int(I/dt),1] += p*ds
+        self.Z += np.matmul(self.A, self.flux[self.i,:])
+        self.i += 1
     
     def forget(self):
-        SIR_lockdown_mixed_delays.forget()
-        if hasattr(self, 'l_traj'):
-            del self.l_traj
+        SIR_lockdown_mixed_delays.forget(self)
+        if hasattr(self, 'flux'):
+            del self.flux
     
     def check(self):
         assert hasattr(self, 'traj')
@@ -424,44 +393,25 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown_mixed_delays):
         r = self.LaplaceEI(self.r)
         return np.array([i, r, e])
     
-    def _init_cst(self):
-        self.d0 = self.r/self.LaplaceEI(self.r)
-        self.g0 = self.r/(1-self.LaplaceE(self.r))
-    
-    def _increase_R_init(self, t):
-        return self.d0*np.sum(self.EI_dist[:,2]*(self.EI_dist[:,0]+self.EI_dist[:,1] > t)*
-                              np.exp(-self.r*(self.EI_dist[:,0]+self.EI_dist[:,1]-t)))
-    
-    def _increase_R(self, t):
-        I = 0
-        for [e, i, p] in self.EI_dist:
-            if t < e + i:
-                pass
-            s = self.shift(t-(e+i))
-            I += self.l_traj[s]*p*self.traj[s,0]*self.traj[s,1]
-        return I
-    
-    def _decay_init_E(self, t):
-        return self.g0*np.sum(self.E_dist[:,1]*(self.E_dist[:,0] > t)*
-                              np.exp(self.r*(t-self.E_dist[:,0])))
-    
-    def _decay_E(self, t):
-        D = 0
-        for [e, p] in self.E_dist:
-            if t < e:
-                pass
-            s = self.shift(t-e)
-            D += self.l_traj[s]*p*self.traj[s,0]*self.traj[s,1]
-        return D
+    def _init_flux(self, n, dt):
+        self.flux = np.zeros((n + int(np.max(self.EI_dist[:,0]+self.EI_dist[:,1])/dt), self.n-1))
+        self.A = np.array([[-1, 0, 0], [0, 1, -1], [0, 0, 1], [1, -1, 0]])
+        g0 = self.r/(1-self.LaplaceE(self.r))
+        d0 = self.r/self.LaplaceEI(self.r)
+        for (E, I, p) in self.EI_dist:
+            e = int(E/dt)
+            i = int(I/dt)
+            self.flux[0:e,1] += self.Z[3]*g0*p*np.exp(self.r*(np.arange(e)*dt-E))*dt
+            self.flux[0:(e+i),2] += self.Z[2]*d0*p*np.exp(self.r*(np.arange(e+i)*dt-(E+I)))*dt
     
     def _step(self, dt):
-        S = self.Z[0]*np.exp(-self.l*dt*self.Z[1])
-        R = self.Z[2] + dt*self._increase_R_init(self.t)*self.traj[0,2] + dt*self._increase_R(self.t)
-        E = self.Z[3] - dt*self._decay_init_E(self.t)*self.traj[0,3] + dt*self.l*self.Z[0]*self.Z[1] - dt*self._decay_E(self.t)
-        I = 1-S-E-R
-        self.t += dt
-        self.l_traj[self.shift(self.t)] = self.l
-        self.Z = [S, I, R, E]
+        ds = self.Z[0]*(1-np.exp(-self.l*dt*self.Z[1]))
+        self.flux[self.i,0] = ds
+        for (E, I, p) in self.EI_dist:
+            self.flux[self.i+int(E/dt),1] += p*ds
+            self.flux[self.i+int((E+I)/dt),2] += p*ds
+        self.Z += np.matmul(self.A, self.flux[self.i,:])
+        self.i += 1
         
 
 #N = 12e6
