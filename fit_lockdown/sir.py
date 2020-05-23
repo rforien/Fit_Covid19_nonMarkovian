@@ -43,6 +43,7 @@ class SIR(object):
         self.Z = np.concatenate(([1], np.zeros(self.n-1)))
     
     def run(self, T, dt = .005, record= False):
+        assert dt > 0
         n = int(T/dt)
         if record and hasattr(self, 'traj'):
             last_t = self.times[-1]

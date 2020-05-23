@@ -14,13 +14,13 @@ import time as time
 
 from matplotlib import cm
 
-data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-05-13-19h00.csv', delimiter = ';')
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-05-22-19h00.csv', delimiter = ';')
 
 # remove unused columns
 admissions = data_new.pivot(index = 'jour', columns = 'dep', values = 'incid_hosp')
 reanimations = data_new.pivot(index = 'jour', columns = 'dep', values = 'incid_rea')
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-13-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-05-22-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -115,9 +115,9 @@ def fit_lockdown(region, name, plot = True):
         axes.legend(loc='best')
         axes.set_title('Decrease in hospital deaths, hospital admissions and\nICU admissions in ' + name + ' under lockdown')
 
-#fit_lockdown(IDF, 'Ile de France')
-#fit_lockdown(GrandEst + HautsdeFrance, 'Grand Est and Hauts-de-France')
-#fit_lockdown(green_regions, 'green areas excluding Corsica')
+fit_lockdown(IDF, 'Ile de France')
+fit_lockdown(GrandEst + HautsdeFrance, 'Grand Est and Hauts-de-France')
+fit_lockdown(green_regions, 'green areas excluding Corsica')
 
 #for (j, r) in enumerate(regions):
 #    fit_lockdown(r, names[j], plot = False)

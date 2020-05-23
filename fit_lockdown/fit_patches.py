@@ -18,8 +18,8 @@ import fit_lockdown as lockdown
 class FitPatches(object):
     lockdown_date = '2020-03-16'
     end_lockdown_fit = '2020-05-13'
-    delay_deaths = 21
-    delay_hosp = 13
+    delay_deaths = 30
+    delay_hosp = 20
     lockdown_end_date = '2020-05-11'
     date_format = '%Y-%m-%d'
     
@@ -75,6 +75,7 @@ class FitPatches(object):
         print('Probabilities of hospitalisation: ', p_hosp)
         self.sir = []
         if Markov:
+            print('Markov model')
             infectious_time = np.sum(EI_dist[:,1]*EI_dist[:,2])
             incubation_time = np.sum(EI_dist[:,0]*EI_dist[:,2])
             for i in np.arange(self.n):
@@ -89,9 +90,9 @@ class FitPatches(object):
             print('Running SEIR model in ' + self.names[i])
             sir.calibrate(self.deaths_at_lockdown[i], self.lockdown_date)
             if i==1:
-                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, 0, 1)
+                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, 0, 1.2)
             else:
-                sir.run_full(self.lockdown_length, 0, 1)
+                sir.run_full(self.lockdown_length, 0, 1.2)
             sir.compute_deaths()
             sir.compute_hosp(p_hosp[i], delay_hosp)
             time.sleep(.001)
@@ -111,8 +112,8 @@ class FitPatches(object):
 #        print(x)
 #        params[0] = .5*(np.tanh(.01*params[0])+1)*14
 #        params[1] = .5*(np.tanh(.01*params[1])+1)*14
-        params[0] = 8 + .5*(np.tanh(.01*params[0])+1)*(20-8)
-        params[1] = 11 + .5*(np.tanh(.01*params[1])+1)*(26-11)
+        params[0] = 8 + .5*(np.tanh(.1*params[0])+1)*(20-8)
+        params[1] = 11 + .5*(np.tanh(.1*params[1])+1)*(26-11)
         print(params)
 #        p_hosp = .025
         f = .005
@@ -137,10 +138,10 @@ class FitPatches(object):
 #            E += np.mean((1-y/x)**2)
             x = self.deaths[self.names[i]][date_death]
             y = sir.deaths[sir.shift(sir.lockdown_time + self.delay_deaths)]
-            E += (1+y/x)**2
+            E += (1-y/x)**2
             x = self.deaths[self.names[i]][date_hosp]
             y = sir.hosp[sir.shift(sir.lockdown_time + self.delay_hosp)]
-            E += (1+y/x)**2
+            E += (1-y/x)**2
         return E
     
     def fit_data(self, init_params):
@@ -190,7 +191,8 @@ class FitPatches(object):
         for (i, sir) in enumerate(self.sir):
             deaths[shifts[i]:] = deaths[shifts[i]:] + sir.deaths
             self.ax_tot.plot(sir.times_death-sir.lockdown_time, sir.deaths, label = self.names[i])
-        self.ax_tot.plot(self.sir[j].times_death-self.sir[j].lockdown_time, deaths, label = 'predicted deaths in France')
+        self.ax_tot.plot(self.sir[j].times_death-self.sir[j].lockdown_time, deaths, 
+                         label = 'predicted deaths in France')
         self.ax_tot.legend(loc='best')
         self.ax_tot.set_yscale('log')
         self.ax_tot.set_xlim((-30,60))
@@ -200,5 +202,46 @@ class FitPatches(object):
         self.ax_tot.set_title('Predicted and observed hospital deaths using the 3-patches model')
         self.ax_tot.grid(True)
     
+    def concat_sir(self):
+        assert hasattr(self, 'sir')
+        shifts = [sir.shift(sir.lockdown_time) for sir in self.sir]
+        j = np.argmax(shifts)
+        shifts = np.max(shifts)-shifts
+        self.times = self.sir[j].times
+        n = np.size(self.times)
+        m = np.size(self.sir[j].flux, axis = 0)
+        self.traj = np.zeros((n, self.n, self.sir[0].n))
+        self.flux = np.zeros((m, self.n, self.sir[0].n-1))
+        self.Z = np.zeros((self.n, self.sir[0].n))
+        for (i, sir) in enumerate(self.sir):
+            self.traj[shifts[i]:,i,:] = sir.traj
+            self.traj[:shifts[i],i,0] = np.ones(shifts[i])
+            self.flux[shifts[i]:,i,:] = sir.flux
+            self.Z[i,:] = sir.Z
+#        self.i = n
+    
+    def run_patches(self, T, MigMat, dt = .01):
+        if not hasattr(self, 'traj'):
+            self.concat_sir()
+        assert dt == self.times[1]-self.times[0]
+        n = int(T/dt)
+        last_t = self.times[-1]
+        offset = np.size(self.times)
+        self.times = np.concatenate((self.times, last_t + dt*np.arange(1,n+1)))
+        self.traj = np.concatenate((self.traj, np.zeros((n, self.n, self.sir[0].n))), axis = 0)
+        self.flux = np.concatenate((self.flux, np.zeros((n, self.n, self.sir[0].n-1))), axis = 0)
+        for i in np.arange(self.n):
+            self.sir[i].times = self.times
+            self.sir[i].traj = self.traj[:,i,:]
+            self.sir[i].flux = self.flux[:,i,:]
+            self.sir[i].i = offset-1
+        for t in np.arange(n):
+            self._step(dt)
+            for (i, sir) in enumerate(self.sir):
+                self.traj[offset+t,i,:] = sir.Z
+    
+    def _step(self, dt):
+        for (i, sir) in enumerate(self.sir):
+            sir._step(dt)
 
 
