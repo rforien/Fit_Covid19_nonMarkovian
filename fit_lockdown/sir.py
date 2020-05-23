@@ -150,17 +150,40 @@ class SIR_lockdown(SIR):
     def run_full(self, lockdown_length, time_after_lockdown, R0_after_lockdown):
         assert lockdown_length > 0 and time_after_lockdown >= 0
         assert hasattr(self, 'lockdown_time')
-        print('R0 prior to lockdown: %.2f' % self.R0())
+#        print('R0 prior to lockdown: %.2f' % self.R0())
         self.run(self.lockdown_time, record = True)
 #        print('State at the start of lockdown: ', self.Z)
 #        self.l = self.contact_rate(self.rE)/self.Z[0]
         self.l = self.contact_rate(self.rE)
-        print('R0 during lockdown: %.2f' % self.R0())
+#        print('R0 during lockdown: %.2f' % self.R0())
         self.run(lockdown_length, record = True)
-        print('State at the end of lockdown: ', self.Z)
+#        print('State at the end of lockdown: ', self.Z)
         self.l = self.contact_rate_R0(R0_after_lockdown)
         self.run(time_after_lockdown, record = True)
 #        print('Final state: ', self.Z)
+        self.lockdown_length = lockdown_length
+    
+    def run_two_step_measures(self, date_of_measures, growth_rate_before_measures, 
+                              lockdown_length, time_after_lockdown, R0_after_lockdown):
+        assert lockdown_length > 0 and time_after_lockdown >= 0
+        assert hasattr(self, 'lockdown_time')
+        assert growth_rate_before_measures > 0
+        self.date_measures = date.datetime.strptime(date_of_measures, self.date_format)
+        tau = (self.lockdown_date-self.date_measures).days
+        x = (self.r/growth_rate_before_measures)*(self.lockdown_time-tau)
+        self.lockdown_time = x + tau
+        self.l = self.contact_rate(growth_rate_before_measures)
+#        print("R0 before first measures: %.2f" % self.R0())
+        self.run(x, record = True)
+        self.l = self.contact_rate(self.r)
+#        print("R0 after first measures: %.2f" % self.R0())
+        self.run(tau, record = True)
+        self.l = self.contact_rate(self.rE)
+#        print("R0 during lockdown: %.2f" % self.R0())
+        self.run(lockdown_length, record = True)
+#        print("State at the end of lockdown: ", self.Z)
+        self.l = self.contact_rate_R0(R0_after_lockdown)
+        self.run(time_after_lockdown, record = True)
         self.lockdown_length = lockdown_length
     
     def plot(self, S = True):
@@ -321,6 +344,7 @@ class SIR_nonMarkov(SIR_lockdown_mixed_delays):
     def run(self, T, dt = .01, record = True):
         n = int(T/dt)
         if hasattr(self, 'times'):
+            assert dt == self.times[1]-self.times[0]
             self.flux = np.concatenate((self.flux, np.zeros((n, self.n-1))))
         else:
             self.i = 0

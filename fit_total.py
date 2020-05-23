@@ -69,18 +69,20 @@ admis_out = admissions[Out].sum(axis=1)
 admis_patches = pd.concat((admis_IDF, admis_GEHdF, admis_out), axis = 1)
 admis_patches.columns = deaths_patches.columns
 
-EI_dist = np.array([[3, 2, .2], [3, 7, .8]])
+EI_dist = np.array([[10, 2, 1]])
 #EI_dist = np.array([[2, 2, 1]])
 f = .005
 #delays = np.array([[21, 1]])
-delay_death = np.transpose(np.vstack((np.linspace(11, 25, 10), .1*np.ones(10))))
-delay_hosp = np.transpose(np.vstack((np.linspace(6, 20, 10), .1*np.ones(10))))
+#delay_death = np.transpose(np.vstack((np.linspace(11, 30, 10), .1*np.ones(10))))
+#delay_hosp = np.transpose(np.vstack((np.linspace(11, 14, 10), .1*np.ones(10))))
+delay_death = np.array([[20, 1]])
+delay_hosp = np.array([[15, 1]])
 #p_hosp = .023
 
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
-#fit_total.fit_data(np.array([0, 0]))
-fit_total.compute_sir(EI_dist, f, delay_death, delay_hosp, Markov = False)
-fit_total.plot_deaths_tot(France)
-fit_total.plot_deaths_hosp()
-fit_total.fig.suptitle('Predicted and observed deaths and hospital \nadmissions using the non-Markovian SEIR model')
+fit_total.fit_data(np.array([0, 0]))
+#fit_total.compute_sir(EI_dist, f, delay_death, delay_hosp, Markov = False)
+#fit_total.plot_deaths_tot(France)
+#fit_total.plot_deaths_hosp()
+#fit_total.fig.suptitle('Predicted and observed deaths and hospital \nadmissions using the non-Markovian SEIR model')

@@ -23,6 +23,9 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     date_format = '%Y-%m-%d'
     
+    date_first_measures_GE = '2020-03-07'
+    r_GE = .27
+    
     def __init__(self, deaths, hospitalisations, sizes):
         assert isinstance(deaths, pd.DataFrame) and isinstance(hospitalisations, pd.DataFrame)
         assert np.min(sizes) > 0
@@ -85,7 +88,10 @@ class FitPatches(object):
         for (i, sir) in enumerate(self.sir):
             print('Running SEIR model in ' + self.names[i])
             sir.calibrate(self.deaths_at_lockdown[i], self.lockdown_date)
-            sir.run_full(self.lockdown_length, 0, 1)
+            if i==1:
+                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, 0, 1)
+            else:
+                sir.run_full(self.lockdown_length, 0, 1)
             sir.compute_deaths()
             sir.compute_hosp(p_hosp[i], delay_hosp)
             time.sleep(.001)
@@ -96,32 +102,49 @@ class FitPatches(object):
 #        params = np.abs(params)
 #        params[0] = np.minimum(params[0], 1)
 #        params[1:] = 10*params[1:]
-        x = params[0]*np.array([.4, -.8, .4]) + params[1]*np.array([.7, 0, -.7])
-        x = x + np.ones(3)/3
-        x = np.maximum(x, np.zeros(3))
-        x = np.minimum(x, np.ones(3))
-        x = x/np.sum(x)
-        print(x)
+#        print(params)
+#        x = params[0]*np.array([.4, -.8, .4]) + params[1]*np.array([.7, 0, -.7])
+#        x = x + np.ones(3)/3
+#        x = np.maximum(x, np.zeros(3))
+#        x = np.minimum(x, np.ones(3))
+#        x = x/np.sum(x)
+#        print(x)
+#        params[0] = .5*(np.tanh(.01*params[0])+1)*14
+#        params[1] = .5*(np.tanh(.01*params[1])+1)*14
+        params[0] = 8 + .5*(np.tanh(.01*params[0])+1)*(20-8)
+        params[1] = 11 + .5*(np.tanh(.01*params[1])+1)*(26-11)
+        print(params)
 #        p_hosp = .025
         f = .005
-        delay_death = np.transpose(np.vstack((np.linspace(11, 28, 10), .1*np.ones(10))))
-        delay_hosp = np.transpose(np.vstack((np.linspace(6, 14, 10), .1*np.ones(10))))
-        EI_dist = np.array([[3, 2, x[0]], [3, 7, x[1]], [3, 15, x[2]]])
+#        delay_death = np.transpose(np.vstack((np.linspace(11, params[3], 10), .1*np.ones(10))))
+#        delay_hosp = np.transpose(np.vstack((np.linspace(6, params[4], 10), .1*np.ones(10))))
+#        EI_dist = np.array([[params[2], 2, x[0]], [params[2], 5, x[1]], [params[2], 7, x[2]]])
+        delay_hosp = np.array([[params[0], 1]])
+        delay_death = np.array([[params[1], 1]])
+        EI_dist = np.array([[3, 2, .6], [3, 14, .4]])
         self.compute_sir(EI_dist, f, delay_death, delay_hosp)
         E = 0
+        date_death = (self.datetime_lockdown + date.timedelta(days = self.delay_deaths)).strftime(self.date_format)
+        date_hosp = (self.datetime_lockdown + date.timedelta(days = self.delay_hosp)).strftime(self.date_format)
         for (i, sir) in enumerate(self.sir):
-            x = self.deaths[self.names[i]].values[:-5]
-            dt = sir.times_death[1]-sir.times_death[0]
-            y = sir.deaths[np.floor((self.observed_times_deaths[:-5]+sir.lockdown_time)/dt).astype(int)]
-            E += np.mean((1-y/x)**2)
-            x = self.hosp[self.names[i]].values[:-5]
-            dt = sir.times_hosp[1]-sir.times_hosp[0]
-            y = sir.hosp[np.floor((self.observed_times_hosp[:-5]+sir.lockdown_time)/dt).astype(int)]
-            E += np.mean((1-y/x)**2)
+#            x = self.deaths[self.names[i]].values[:-5]
+#            dt = sir.times_death[1]-sir.times_death[0]
+#            y = sir.deaths[np.floor((self.observed_times_deaths[:-5]+sir.lockdown_time)/dt).astype(int)]
+#            E += np.mean((1-y/x)**2)
+#            x = self.hosp[self.names[i]].values[:-5]
+#            dt = sir.times_hosp[1]-sir.times_hosp[0]
+#            y = sir.hosp[np.floor((self.observed_times_hosp[:-5]+sir.lockdown_time)/dt).astype(int)]
+#            E += np.mean((1-y/x)**2)
+            x = self.deaths[self.names[i]][date_death]
+            y = sir.deaths[sir.shift(sir.lockdown_time + self.delay_deaths)]
+            E += (1+y/x)**2
+            x = self.deaths[self.names[i]][date_hosp]
+            y = sir.hosp[sir.shift(sir.lockdown_time + self.delay_hosp)]
+            E += (1+y/x)**2
         return E
     
     def fit_data(self, init_params):
-        self.result = optim.minimize(self._fit_sir, init_params, method = 'Nelder-Mead')
+        self.result = optim.minimize(self._fit_sir, init_params)
         print(self.result.x)
     
     def plot_deaths_hosp(self):
@@ -166,7 +189,8 @@ class FitPatches(object):
         deaths = np.zeros(np.max([np.size(sir.times_death) for sir in self.sir]))
         for (i, sir) in enumerate(self.sir):
             deaths[shifts[i]:] = deaths[shifts[i]:] + sir.deaths
-        self.ax_tot.plot(self.sir[j].times_death-self.sir[j].lockdown_time, deaths, label = 'predicted deaths')
+            self.ax_tot.plot(sir.times_death-sir.lockdown_time, sir.deaths, label = self.names[i])
+        self.ax_tot.plot(self.sir[j].times_death-self.sir[j].lockdown_time, deaths, label = 'predicted deaths in France')
         self.ax_tot.legend(loc='best')
         self.ax_tot.set_yscale('log')
         self.ax_tot.set_xlim((-30,60))
@@ -176,28 +200,5 @@ class FitPatches(object):
         self.ax_tot.set_title('Predicted and observed hospital deaths using the 3-patches model')
         self.ax_tot.grid(True)
     
-#    def _plot_deaths_hosp(self):
-#        self.fig, self.dhaxs = plt.subplots(2, 2, dpi = 200, figsize = (8, 8), sharex = True)
-#        for (i, sir) in enumerate(self.sir):
-#            p = self.dhaxs[0,0].plot(self.observed_times_deaths, self.deaths[self.names[i]].values,
-#                      label = self.names[i], linestyle = 'dashed')
-#            color = p[0].get_color()
-#            self.dhaxs[0,0].plot(sir.times_death-sir.lockdown_time, sir.deaths, color = color)
-#            self.dhaxs[0,1].plot(self.observed_times_deaths[1:], np.diff(self.deaths[self.names[i]].values),
-#                      linestyle = 'dashed', color = color)
-#            self.dhaxs[0,1].plot(sir.times_daily_death-sir.lockdown_time, sir.daily_deaths, color = color)
-#            self.dhaxs[1,0].plot(self.observed_times_hosp, self.hosp[self.names[i]].values, linestyle = 'dashed',
-#                      color = color)
-#            self.dhaxs[1,0].plot(sir.times_daily_hosp-sir.lockdown_time, sir.hosp, color = color)
-#            self.dhaxs[1,1].plot(self.observed_times_hosp[1:], np.diff(self.hosp[self.names[i]].values),
-#                      linestyle = 'dashed', color = color)
-#            self.dhaxs[1,1].plot(sir.times_hosp-sir.lockdown_time, sir.daily_hosp, color = color)
-#        self.dhaxs[0,0].set_title('Cumulative')
-#        self.dhaxs[0,1].set_title('Daily')
-#        self.dhaxs[0,0].set_ylabel('Deaths')
-#        self.dhaxs[1,0].set_ylabel('Hospital admissions')
-#        self.dhaxs[0,0].legend(loc='best')
-#        self.dhaxs[1,0].set_xlabel('Time since lockdown (days)')
-#        self.dhaxs[1,1].set_xlabel('Time since lockdown (days)')
-##        self.dhaxs
+
 
