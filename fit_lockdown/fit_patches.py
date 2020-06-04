@@ -204,6 +204,7 @@ class FitPatches(object):
         return self.mean_error()
     
     #best fit so far : [38, 36, .85] keep this for now and do another run later ?
+    # choose a simple distribution for delay hosp to death
     def fit_mcmc(self, T, init_params):
         beta = 15
         T = int(T)
