@@ -10,11 +10,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime as date
 
+from fit_lockdown import *
+
 class SIR(object):
 #    e = np.array([-1, 1])
     def _setZ(self, Z):
 #        print(Z)
-        assert np.size(Z) == self.n and np.abs(np.sum(Z)-1) < 1e-8 and np.min(Z) >= 0
+#        assert np.size(Z) == self.n and np.abs(np.sum(Z)-1) < 1e-8 and np.min(Z) >= 0
+        assert np.size(Z) == self.n and np.min(Z) >= 0
         self._Z = np.log(Z)
     def _getZ(self):
         return np.exp(self._Z)
@@ -148,24 +151,27 @@ class SIR_lockdown(SIR):
     def lead_eigen_vect(self):
         return np.array([self.r/self.l, 1-self.r/self.l])
     
-    def run_full(self, lockdown_length, time_after_lockdown, R0_after_lockdown):
+    def run_full(self, lockdown_length, time_after_lockdown, R0_after_lockdown, verbose = True):
         assert lockdown_length > 0 and time_after_lockdown >= 0
         assert hasattr(self, 'lockdown_time')
-#        print('R0 prior to lockdown: %.2f' % self.R0())
+        if verbose:
+            print('R0 prior to lockdown: %.2f' % self.R0())
         self.run(self.lockdown_time, record = True)
 #        print('State at the start of lockdown: ', self.Z)
 #        self.l = self.contact_rate(self.rE)/self.Z[0]
         self.l = self.contact_rate(self.rE)
-#        print('R0 during lockdown: %.2f' % self.R0())
+        if verbose:
+            print('R0 during lockdown: %.2f' % self.R0())
         self.run(lockdown_length, record = True)
-#        print('State at the end of lockdown: ', self.Z)
+        if verbose:
+            print('State at the end of lockdown: ', self.Z)
         self.l = self.contact_rate_R0(R0_after_lockdown)
         self.run(time_after_lockdown, record = True)
 #        print('Final state: ', self.Z)
         self.lockdown_length = lockdown_length
     
     def run_two_step_measures(self, date_of_measures, growth_rate_before_measures, 
-                              lockdown_length, time_after_lockdown, R0_after_lockdown):
+                              lockdown_length, time_after_lockdown, R0_after_lockdown, verbose = True):
         assert lockdown_length > 0 and time_after_lockdown >= 0
         assert hasattr(self, 'lockdown_time')
         assert growth_rate_before_measures > 0
@@ -174,15 +180,19 @@ class SIR_lockdown(SIR):
         x = (self.r/growth_rate_before_measures)*(self.lockdown_time-tau)
         self.lockdown_time = x + tau
         self.l = self.contact_rate(growth_rate_before_measures)
-#        print("R0 before first measures: %.2f" % self.R0())
+        if verbose:
+            print("R0 before first measures: %.2f" % self.R0())
         self.run(x, record = True)
         self.l = self.contact_rate(self.r)
-#        print("R0 after first measures: %.2f" % self.R0())
+        if verbose:
+            print("R0 after first measures: %.2f" % self.R0())
         self.run(tau, record = True)
         self.l = self.contact_rate(self.rE)
-#        print("R0 during lockdown: %.2f" % self.R0())
+        if verbose:
+            print("R0 during lockdown: %.2f" % self.R0())
         self.run(lockdown_length, record = True)
-#        print("State at the end of lockdown: ", self.Z)
+        if verbose:
+            print("State at the end of lockdown: ", self.Z)
         self.l = self.contact_rate_R0(R0_after_lockdown)
         self.run(time_after_lockdown, record = True)
         self.lockdown_length = lockdown_length
@@ -233,13 +243,9 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
         if not hasattr(self, 'N'):
             SIR_lockdown.__init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                               generation_time, 1)
-        assert self.is_dist(delay_dist)
+        assert is_dist(delay_dist)
         self.delay_dist = delay_dist
-    
-    def is_dist(self, dist, dim = 1):
-        assert type(dim) == int
-        return np.size(dist, axis = 1) == dim + 1 and np.abs(np.sum(dist[:,-1])-1) < 1e-8 and np.min(dist) >= 0
-    
+     
     def calibrate(self, deaths_lockdown, lockdown_date, I0 = 1):
         super().calibrate(deaths_lockdown, lockdown_date, I0)
         denom = np.sum(self.delay_dist[:,1]*np.exp(-self.r*self.delay_dist[:,0]))
@@ -261,7 +267,7 @@ class SIR_lockdown_mixed_delays(SIR_lockdown):
         self.daily_deaths = self.deaths[day:]-self.deaths[:-day]
     
     def compute_hosp(self, p_hosp, delay_hosp):
-        assert self.is_dist(delay_hosp) and p_hosp > 0 and p_hosp <= 1
+        assert is_dist(delay_hosp) and p_hosp > 0 and p_hosp <= 1
         record = False
         if hasattr(self, 'deaths'):
             record = True
@@ -320,7 +326,7 @@ class SIR_nonMarkov(SIR_lockdown_mixed_delays):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate,
                  infectious_period_dist, delay_dist):
 #        print('SIR_nonMarkov.__init__')
-        assert self.is_dist(infectious_period_dist)
+        assert is_dist(infectious_period_dist)
         self.I_dist = infectious_period_dist
         if not hasattr(self, 'delay_dist'):
             SIR_lockdown_mixed_delays.__init__(self, N, growth_rate_init, growth_rate_lockdown, 
@@ -360,7 +366,7 @@ class SIR_nonMarkov(SIR_lockdown_mixed_delays):
         self.A = np.array([[-1, 0], [1, -1], [0, 1]])
     
     def _step(self, dt):
-        ds = self.Z[0]*(1 - np.exp(-self.l*dt*self.Z[1]))
+        ds = self.Z[0]*(1 - np.exp(-self.l*dt*self.Z[1]/np.sum(self.Z)))
         self.flux[self.i,0] = ds
         for (I, p) in self.I_dist:
             self.flux[self.i+int(I/dt),1] += p*ds
@@ -393,7 +399,7 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown_mixed_delays):
     def __init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
                  EI_period_dist, delay_dist):
 #        print('SEIR_nonMarkov.__init__')
-        assert self.is_dist(EI_period_dist, dim = 2)
+        assert is_dist(EI_period_dist, dim = 2)
         self.EI_dist = EI_period_dist
         self.E_dist = self.EI_dist[:,0::2]
         SIR_nonMarkov.__init__(self, N, growth_rate_init, growth_rate_lockdown, case_fatality_rate, 
@@ -430,14 +436,15 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown_mixed_delays):
             self.flux[0:(e+i),2] += self.Z[2]*d0*p*np.exp(self.r*(np.arange(e+i)*dt-(E+I)))*dt
     
     def _step(self, dt):
-        ds = self.Z[0]*(1-np.exp(-self.l*dt*self.Z[1]))
+        ds = self.Z[0]*(1-np.exp(-self.l*dt*self.Z[1]/np.sum(self.Z)))
         self.flux[self.i,0] = ds
         for (E, I, p) in self.EI_dist:
             self.flux[self.i+int(E/dt),1] += p*ds
             self.flux[self.i+int((E+I)/dt),2] += p*ds
         self.Z += np.matmul(self.A, self.flux[self.i,:])
         self.i += 1
-        
+
+
 
 #N = 12e6
 #r = .3
