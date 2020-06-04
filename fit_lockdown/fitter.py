@@ -69,30 +69,31 @@ class Fitter(object):
         self.start_lock = (self.lockdown_date + self.delay).strftime(self.date_format)
         assert self.start_lock in self.data.index
         self.n_lock = np.size(self.data[self.start_lock:self.end_lock]['cumul'].values)
-        self.N0 = self.data['cumul'][self.start_lock]
-        self.scale = (self.data['cumul'][self.end_lock] - self.data['cumul'][self.start_lock])/self.n_lock
+        self.N0_lock = self.data['cumul'][self.start_lock]
+        self.scale_lock = (self.data['cumul'][self.end_lock] - self.data['cumul'][self.start_lock])/self.n_lock
         init_params = np.array([.1, -1])
-        self.result_lockdown = optim.minimize(self._error, init_params)
+        self.result_lockdown = optim.minimize(self._error, init_params, 
+                                              args = (self.N0_lock, self.start_lock, self.end_lock, self.n_lock, self.scale_lock))
         self.fit_params = self.result_lockdown.x
         self.rE = self.fit_params[0]
         self.index_lockdown = self.data[self.start_lock:self.end_lock].index
     
-    def _error(self, params):
-        y = self.N0 + self.scale*params[1]*(np.exp(params[0]*np.arange(self.n_lock))-1)
-        x = self.data[self.start_lock:self.end_lock]['cumul'].values
-#        print(x)
-#        print(y)
+    def _error(self, params, N0, start, end, n, scale = 1):
+        y = N0 + scale*params[1]*(np.exp(params[0]*np.arange(n))-1)
+        x = self.data[start:end]['cumul'].values
+        # print(x)
+        # print(y)
         E = np.sum(np.abs(1-y/x)**2)
-#        print(params, E)
+        # print(params, E)
         return E
     
     def best_fit_lock_cumul(self):
         assert hasattr(self, 'fit_params')
-        return self.N0 + self.scale*self.fit_params[1]*(np.exp(self.fit_params[0]*np.arange(self.n_lock))-1)
+        return self.N0_lock + self.scale_lock*self.fit_params[1]*(np.exp(self.fit_params[0]*np.arange(self.n_lock))-1)
     
     def best_fit_lock_daily(self):
         assert hasattr(self, 'fit_params')
-        return self.scale*self.fit_params[1]*self.fit_params[0]*np.exp(self.fit_params[0]*np.arange(self.n_lock))
+        return self.scale_lock*self.fit_params[1]*self.fit_params[0]*np.exp(self.fit_params[0]*np.arange(self.n_lock))
     
     def best_fit_init_cumul(self):
         assert hasattr(self, 'regression_init')
@@ -102,6 +103,26 @@ class Fitter(object):
         assert hasattr(self, 'regression_init')
         return self.r*np.exp(self.regression_init.intercept + self.r*np.arange(self.n_init))
     
+    def fit_post_lockdown(self, start, end):
+        assert start in self.data.index and end in self.data.index
+        self.n_post = np.size(self.data[start:end]['cumul'].values)
+        self.N0_post = self.data['cumul'][start]
+        # self.scale_post = (self.data['cumul'][end]-self.data['cumul'][start])/self.n_lock
+        self.scale_post = 1
+        init_params = np.array([-.1, -20])
+        self.result_post_lockdown = optim.minimize(self._error, init_params,
+                                                   args = (self.N0_post, start, end, self.n_post), method='Nelder-Mead')
+        self.fit_params_post = self.result_post_lockdown.x
+        self.r_post = self.fit_params_post[0]
+        self.index_post_lockdown = self.data[start:end].index
+    
+    def best_fit_post_cumul(self):
+        assert hasattr(self, 'fit_params_post')
+        return self.N0_post + self.scale_post*self.fit_params_post[1]*(np.exp(self.fit_params_post[0]*np.arange(self.n_post))-1)
+    
+    def best_fit_post_daily(self):
+        assert hasattr(self, 'fit_params_post')
+        return self.scale_post*self.fit_params_post[1]*self.fit_params_post[0]*np.exp(self.fit_params_post[0]*np.arange(self.n_post))
     
     def plot_fit(self, tick_interval = 7):
         assert type(tick_interval) == int and tick_interval > 0

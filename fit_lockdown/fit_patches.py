@@ -19,7 +19,7 @@ import time
 #from .sir import *
 #from .dist import *
 
-#import fit_lockdown as lockdown
+# import fit_lockdown
 from fit_lockdown import *
 
 class FitPatches(object):
@@ -30,6 +30,8 @@ class FitPatches(object):
     delay_hosp = 18
     lockdown_end_date = '2020-05-11'
     date_format = '%Y-%m-%d'
+    start_post_lockdown_fit = '2020-05-18'
+    end_post_lockdown_fit = '2020-06-01'
     
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
@@ -61,7 +63,7 @@ class FitPatches(object):
         self.hosp_fitters = []
         self.r = np.zeros(self.n)
         self.rE = np.zeros(self.n)
-        self.R0_after = np.array([1.5, .7, .7])
+        self.r_post = np.zeros(self.n)
         self.deaths_at_lockdown = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             self.death_fitters.append(Fitter(self.deaths[n], self.lockdown_date, self.delay_deaths))
@@ -69,14 +71,17 @@ class FitPatches(object):
             self.death_fitters[i].fit_lockdown(self.end_lockdown_fit)
             self.hosp_fitters.append(Fitter(self.hosp[n], self.lockdown_date, self.delay_hosp))
             self.hosp_fitters[i].fit_lockdown(self.end_lockdown_fit)
+            self.hosp_fitters[i].fit_post_lockdown(self.start_post_lockdown_fit, self.end_post_lockdown_fit)
             self.r[i] = self.death_fitters[i].r
             self.rE[i] = self.hosp_fitters[i].rE
+            self.r_post[i] = self.hosp_fitters[i].r_post
             self.deaths_at_lockdown[i] = self.death_fitters[i].deaths_at_lockdown()
         print('Growth rates prior to lockdown: ', self.r)
         print('Growth rates during lockdown: ', self.rE)
+        print('Growth rates after lockdown: ', self.r_post)
         print('Deaths at lockdown: ', self.deaths_at_lockdown)
     
-    def compute_sir(self, EI_dist, p_death, delay_death, delay_hosp, Markov = False, verbose = True):
+    def compute_sir(self, EI_dist, p_death, delay_death, delay_hosp, end_of_run, Markov = False, verbose = True):
         p_hosp = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             p_hosp[i] = p_death*(self.hosp[n].values[1]/self.deaths[n].values[1])*(
@@ -85,6 +90,8 @@ class FitPatches(object):
         if verbose:
             print('Probabilities of hospitalisation: ', p_hosp)
         self.sir = []
+        time_after_lockdown = (date.datetime.strptime(end_of_run, self.date_format)-
+                               date.datetime.strptime(self.lockdown_end_date, self.date_format)).days
         if Markov:
             print('Markov model')
             infectious_time = np.sum(EI_dist[:,1]*EI_dist[:,2])
@@ -102,10 +109,10 @@ class FitPatches(object):
                 print('Running SEIR model in ' + self.names[i])
             sir.calibrate(self.deaths_at_lockdown[i], self.lockdown_date)
             if i==1:
-                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, 0, 
-                                          self.R0_after[i], verbose = verbose)
+                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, time_after_lockdown, 
+                                          self.r_post[i], verbose = verbose)
             else:
-                sir.run_full(self.lockdown_length, 0, self.R0_after[i], verbose = False)
+                sir.run_full(self.lockdown_length, time_after_lockdown, self.r_post[i], verbose = False)
             sir.compute_deaths()
             sir.compute_hosp(p_hosp[i], delay_hosp)
             time.sleep(.001)
@@ -190,22 +197,25 @@ class FitPatches(object):
     def _fit_reported(self, params):
         print(params)
         delay_hosp = [6, 0] + [10, 1]*beta_dist(1.5, 1.2, 20)
-        x = params[0]/(1+params[1])
+        # x = params[0]/(1+params[1])
+        # y = 2*x*params[1]/5
+        # delay_hosp_to_death = np.concatenate(([1, .15]*np.array([[1, 1]]), [1, .85]*(
+        #         [x, 0] + [y, 1]*beta_dist(1.5, 1.5, 20))), axis = 0)
+        x = params[0]/(1+params[1]/5)
         y = 2*x*params[1]/5
-        delay_hosp_to_death = np.concatenate(([1, .15]*np.array([[1, 1]]), [1, .85]*(
-                [x, 0] + [y, 1]*beta_dist(1.5, 1.5, 20))), axis = 0)
+        delay_hosp_to_death = [x, 0] + [y, 1]*beta_dist(1.5, 1.5, 20)
         delay_death = convol(delay_hosp, delay_hosp_to_death)
         E_dist = np.array([[4, 1]])
         I_dist = np.concatenate(([1, params[2]]*([3, 0] + [2, 1]*beta_dist(2, 2)),
                   [1, 1-params[2]]*([5, 0] + [10, 1]*beta_dist(2, 2))), axis = 0)
         EI_dist = product_dist(E_dist, I_dist)
         f = .005
-        self.compute_sir(EI_dist, f, delay_death, delay_hosp, verbose = False)
+        self.compute_sir(EI_dist, f, delay_death, delay_hosp, end_of_run = '2020-05-31', verbose = False)
         return self.mean_error()
     
     #best fit so far : [38, 36, .85] keep this for now and do another run later ?
     def fit_mcmc(self, T, init_params):
-        beta = 15
+        beta = 1
         T = int(T)
         params = init_params
         current_fit = self._fit_reported(params)
@@ -230,6 +240,8 @@ class FitPatches(object):
 #        print(k)
         if k in [0, 1]:
             params[k] = np.abs(params[k] + np.random.normal(0, 1))
+            if k == 0 and params[0] > 25:
+                params[0] = np.maximum(0, 2*25-params[0])
         elif k == 2:
             if params[k] - .05 < 0:
                 params[k] += .05
@@ -291,7 +303,7 @@ class FitPatches(object):
         print(self.result.x)
     
     def plot_deaths_hosp(self, logscale = True):
-        self.fig, self.dhaxs = plt.subplots(self.n, 2, dpi = 200, figsize = (8, 16), sharex = True)
+        self.fig, self.dhaxs = plt.subplots(self.n, 2, dpi = 200, figsize = (10, 16), sharex = True)
         for (i, sir) in enumerate(self.sir):
             p0 = self.dhaxs[i,0].plot(sir.times_death-sir.lockdown_time, sir.deaths, label = 'predicted deaths')
             self.dhaxs[i,1].plot(sir.times_daily_deaths-sir.lockdown_time, sir.daily_deaths, color = p0[0].get_color())
