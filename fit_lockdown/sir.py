@@ -151,7 +151,7 @@ class SIR_lockdown(SIR):
     def lead_eigen_vect(self):
         return np.array([self.r/self.l, 1-self.r/self.l])
     
-    def run_full(self, lockdown_length, time_after_lockdown, R0_after_lockdown, verbose = True):
+    def run_full(self, lockdown_length, time_after_lockdown, r_after_lockdown, verbose = True):
         assert lockdown_length > 0 and time_after_lockdown >= 0
         assert hasattr(self, 'lockdown_time')
         if verbose:
@@ -165,13 +165,13 @@ class SIR_lockdown(SIR):
         self.run(lockdown_length, record = True)
         if verbose:
             print('State at the end of lockdown: ', self.Z)
-        self.l = self.contact_rate_R0(R0_after_lockdown)
+        self.l = self.contact_rate(r_after_lockdown)
         self.run(time_after_lockdown, record = True)
 #        print('Final state: ', self.Z)
         self.lockdown_length = lockdown_length
     
     def run_two_step_measures(self, date_of_measures, growth_rate_before_measures, 
-                              lockdown_length, time_after_lockdown, R0_after_lockdown, verbose = True):
+                              lockdown_length, time_after_lockdown, r_after_lockdown, verbose = True):
         assert lockdown_length > 0 and time_after_lockdown >= 0
         assert hasattr(self, 'lockdown_time')
         assert growth_rate_before_measures > 0
@@ -193,7 +193,7 @@ class SIR_lockdown(SIR):
         self.run(lockdown_length, record = True)
         if verbose:
             print("State at the end of lockdown: ", self.Z)
-        self.l = self.contact_rate_R0(R0_after_lockdown)
+        self.l = self.contact_rate(r_after_lockdown)
         self.run(time_after_lockdown, record = True)
         self.lockdown_length = lockdown_length
     

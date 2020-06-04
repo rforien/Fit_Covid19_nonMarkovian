@@ -13,7 +13,7 @@ import fit_lockdown as lockdown
 
 data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-01-19h00.csv', delimiter = ';')
 
-deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
+# deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
 # forget sex
 data = data[data['sexe'] == 0]
@@ -53,7 +53,7 @@ Out = PACA + RhoneAlpes + Occitanie + Bretagne + Loire + Normandie + Centre + Aq
 
 France = deaths[Out + IDF + GrandEst + HautsdeFrance].sum(axis=1)
 France = pd.DataFrame(France, columns = ['deces'])
-France = pd.concat((deaths_early['2020-02-15':'2020-03-17'], France), axis = 0)
+# France = pd.concat((deaths_early['2020-02-15':'2020-03-17'], France), axis = 0)
 
 N_out = N_france - N_idf - N_GE - N_HdF
 
@@ -84,20 +84,20 @@ f = .005
 delay_hosp = [6, 0] + [10, 1]*lockdown.beta_dist(1.5, 1.2, 20)
 delay_death = ([7, 0] + [20, 1]*lockdown.beta_dist(2, 1.5, 20))
 
-MigMat = np.zeros((4, 3, 3))
-for i in np.arange(4):
-    MigMat[i] = .01*np.array([[-1, .5, .5], [.5, -1, .5], [.5, .5, -1]])
+# MigMat = np.zeros((4, 3, 3))
+# for i in np.arange(4):
+#     MigMat[i] = .01*np.array([[-1, .5, .5], [.5, -1, .5], [.5, .5, -1]])
 
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
-#print(fit_total._fit_reported(np.array([1, 10, .5])))
-fit_total.fit_mcmc(1e4, np.array([10, 5, .5]))
+print(fit_total._fit_reported(np.array([10, 35, .85])))
+# fit_total.fit_mcmc(1e4, np.array([18, 5, .5]))
 #fit_total.fit_data(np.array([.5, .5, .5]), bounds = ((0, 1), (0, 1), (0, 1)))
 #fit_total._fit_fixed([0.7, 0.5, .5, .5])
-#fit_total.compute_sir(EI_dist, f, delay_death, delay_hosp, Markov = False)
+# fit_total.compute_sir(EI_dist, f, delay_death, delay_hosp, end_of_run = '2020-06-01', Markov = False)
 ##fit_total.run_patches(300, MigMat)
 ###print(fit_total._fit_sir(p))
 ##fit_total.plot_deaths_tot(France)
-#fit_total.plot_deaths_hosp()
-#fit_total.fig.suptitle('Predicted and observed deaths and hospital \nadmissions using the non-Markovian SEIR model')
+fit_total.plot_deaths_hosp()
+fit_total.fig.suptitle('Predicted and observed deaths and hospital \nadmissions using the non-Markovian SEIR model')
 #[sir.plot() for sir in fit_total.sir]
