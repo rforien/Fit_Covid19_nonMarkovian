@@ -30,6 +30,8 @@ class FitPatches(object):
     delay_hosp = 18
     lockdown_end_date = '2020-05-11'
     date_format = '%Y-%m-%d'
+    start_fit_init = '2020-03-19'
+    end_fit_init = '2020-03-26'
     start_post_lockdown_fit = '2020-05-21'
     end_post_lockdown_fit = '2020-06-07'
     
@@ -67,7 +69,7 @@ class FitPatches(object):
         self.deaths_at_lockdown = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             self.death_fitters.append(Fitter(self.deaths[n], self.lockdown_date, self.delay_deaths))
-            self.death_fitters[i].fit_init('2020-03-19', '2020-03-26')
+            self.death_fitters[i].fit_init(self.start_fit_init, self.end_fit_init)
             self.death_fitters[i].fit_lockdown(self.end_lockdown_fit)
             self.death_fitters[i].fit_post_lockdown('2020-05-25', self.end_post_lockdown_fit)
             self.hosp_fitters.append(Fitter(self.hosp[n], self.lockdown_date, self.delay_hosp))
@@ -403,6 +405,17 @@ class FitPatches(object):
         self.ax_tot.set_ylabel('Cumulative hospital deaths')
         self.ax_tot.set_title('Predicted and observed hospital deaths using the 3-patches model')
         self.ax_tot.grid(True)
+    
+    def plot_fit_init(self, deaths_tot):
+        self.tot_fitter = lockdown.Fitter(deaths_tot, self.lockdown_date, self.delay_deaths)
+        self.tot_fitter.fit_init('2020-03-01', self.end_fit_init)
+        
+        self.fig, self.init_axs = plt.subplots(1, 2, sharey = True, dpi = 100, figsize = (10, 12))
+        for i in np.arange(2):
+            self.init_axs[i].scatter(self.tot_fitter.data['cumul'])
+            for j in np.arange(self.n):
+                self.init_axs[i].scatter(self.death_fitters[j].data['cumul'])
+        
     
     def plot_SIR_deaths_hosp(self):
         assert hasattr(self, 'sir')

@@ -90,6 +90,7 @@ delay_death = ([7, 0] + [20, 1]*lockdown.beta_dist(2, 1.5, 20))
 
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
+fit_total.
 #fit_total.plot_fit()
 #print(fit_total._fit_reported(np.array([6, 51, .8])))
 # fit_total.fit_mcmc(1e4, np.array([18, 5, .5]))
