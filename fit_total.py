@@ -11,7 +11,7 @@ import numpy as np
 
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-07-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-10-19h00.csv', delimiter = ';')
 
 # deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -90,7 +90,7 @@ delay_death = ([7, 0] + [20, 1]*lockdown.beta_dist(2, 1.5, 20))
 
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
-#fit_total.plot_fit()
+fit_total.plot_fit()
 #print(fit_total._fit_reported(np.array([6, 51, .8])))
 # fit_total.fit_mcmc(1e4, np.array([18, 5, .5]))
 #fit_total.fit_data(np.array([.5, .5, .5]), bounds = ((0, 1), (0, 1), (0, 1)))

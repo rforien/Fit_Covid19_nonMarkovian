@@ -31,7 +31,7 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     date_format = '%Y-%m-%d'
     start_post_lockdown_fit = '2020-05-21'
-    end_post_lockdown_fit = '2020-06-07'
+    end_post_lockdown_fit = '2020-06-10'
     
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
