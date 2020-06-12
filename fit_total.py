@@ -13,7 +13,7 @@ import fit_lockdown as lockdown
 
 data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-10-19h00.csv', delimiter = ';')
 
-# deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
+deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
 # forget sex
 data = data[data['sexe'] == 0]
@@ -53,7 +53,7 @@ Out = PACA + RhoneAlpes + Occitanie + Bretagne + Loire + Normandie + Centre + Aq
 
 France = deaths[Out + IDF + GrandEst + HautsdeFrance].sum(axis=1)
 France = pd.DataFrame(France, columns = ['deces'])
-# France = pd.concat((deaths_early['2020-02-15':'2020-03-17'], France), axis = 0)
+France = pd.concat((deaths_early['2020-02-15':'2020-03-17'], France), axis = 0)
 
 N_out = N_france - N_idf - N_GE - N_HdF
 
@@ -61,7 +61,7 @@ deaths_IDF = deaths[IDF].sum(axis=1)
 deaths_GEHdF = deaths[GrandEst + HautsdeFrance].sum(axis=1)
 deaths_out = deaths[Out].sum(axis=1)
 deaths_patches = pd.concat((deaths_IDF, deaths_GEHdF, deaths_out), axis = 1)
-deaths_patches.columns = ['Ile de France', 'Grand Est and\n Hauts-de-France', 'Rest of France']
+deaths_patches.columns = ['Ile de France', 'Grand Est and Hauts-de-France', 'Rest of France']
 
 admis_IDF = admissions[IDF].sum(axis=1)
 admis_GEHdF = admissions[GrandEst + HautsdeFrance].sum(axis=1)
@@ -90,7 +90,8 @@ delay_death = ([7, 0] + [20, 1]*lockdown.beta_dist(2, 1.5, 20))
 
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
-fit_total.plot_fit()
+# fit_total.plot_fit_init(France)
+fit_total.plot_fit_lockdown()
 #print(fit_total._fit_reported(np.array([6, 51, .8])))
 # fit_total.fit_mcmc(1e4, np.array([18, 5, .5]))
 #fit_total.fit_data(np.array([.5, .5, .5]), bounds = ((0, 1), (0, 1), (0, 1)))

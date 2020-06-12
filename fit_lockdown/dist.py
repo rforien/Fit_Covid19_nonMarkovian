@@ -14,7 +14,7 @@ import scipy.special as sp
 def is_dist(dist, dim = 1):
     assert type(dim) == int
     return np.size(dist, axis = 1) == dim + 1 and np.abs(np.sum(dist[:,-1])-1) < 1e-8 and np.min(dist) >= 0
-        
+
 def product_dist(dist1, dist2):
     assert is_dist(dist1) and is_dist(dist2)
     n = np.size(dist1, axis = 0)
@@ -74,10 +74,14 @@ def EI_dist_covid(p_reported, fixed_E = True, n = 10):
     if fixed_E:
         E_dist = np.array([[3, 1]])
     else:
-        E_dist = [3, 0] + beta_dist(2, 2, n)
+        E_dist = [2, 0] + [2, 1]*beta_dist(2, 2, n)
     I_dist = np.concatenate(([2, p_reported]*([3, 0] + beta_dist(2, 2, n)),
              [1, 1-p_reported]*([8, 0] + [4, 1]*beta_dist(2, 2, n))), axis = 0)
     return product_dist(E_dist, I_dist)
+
+def R0(rho, EI_dist):
+    return rho*np.sum(EI_dist[:,1]*EI_dist[:,2])/(
+        np.sum(EI_dist[:,2]*np.exp(-rho*EI_dist[:,0])) - np.sum(EI_dist[:,2]*np.exp(-rho*(EI_dist[:,0]+EI_dist[:,1]))))
 
 class Dist(object):
     def __init__(self, values, probas):
