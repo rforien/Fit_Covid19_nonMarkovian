@@ -9,6 +9,7 @@ Created on Sat May 16 11:06:28 2020
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import datetime as date
 import scipy.optimize as optim
 import scipy.linalg as linalg
@@ -129,7 +130,39 @@ class FitPatches(object):
         self.axs[self.n-1,1].set_xticklabels(self.deaths.index[0::tick_interval])
 #        self.fig.set_tight_layout(True)
     
-    def compute_sir(self, EI_dist, p_death, delay_death, delay_hosp, end_of_run, Markov = False, verbose = True):
+    def plot_fit_lockdown(self):
+        tick_interval = 20
+        m = int(np.ceil(np.sqrt(self.n)))
+        gs = gridspec.GridSpec(m, m)
+        fig = plt.figure(dpi = 100, figsize = (12, 8))
+        lines = []
+        for i in np.arange(self.n):
+            x = np.floor_divide(i, m)
+            y = np.mod(i, m)
+            if i == 0:
+                ax = plt.subplot(gs[x, y])
+            else:
+                ax = plt.subplot(gs[x, y], sharey = ax)
+            ax.set_title(self.names[i])
+            for fitter in [self.hosp_fitters[i], self.death_fitters[i]]:
+                data = ax.plot(fitter.data.index, fitter.data['daily'].values, linestyle = 'dashed')
+                ax.plot(fitter.index_lockdown, fitter.best_fit_lock_daily(), 
+                        linestyle = 'solid', color = data[0].get_color())
+                ax.plot(fitter.index_post_lockdown, fitter.best_fit_post_daily(), 
+                        linestyle = 'solid', color = data[0].get_color(),
+                        label = r'$\rho_L$ = %.2f, $\rho_E$ = %.2f' % (fitter.rE, fitter.r_post))
+                if i == self.n-1:
+                    lines.append(data[0])
+            ax.legend(loc = 'best')
+            ax.set_yscale('log')
+            ax.set_xticks(fitter.data.index[0::tick_interval])
+            ax.set_xticklabels(fitter.data.index[0::tick_interval])
+            ax.grid(True)
+        fig.legend(lines, ['Daily hospital admissions', 'Daily hospital deaths'], loc = (.53, .4))
+        fig.set_tight_layout(True)
+            
+    
+    def compute_sir(self, p_reported, p_death, delay_death, delay_hosp, end_of_run, Markov = False, verbose = True):
         p_hosp = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             p_hosp[i] = p_death*(self.hosp[n].values[1]/self.deaths[n].values[1])*(
@@ -137,6 +170,7 @@ class FitPatches(object):
                   np.sum(delay_hosp[:,1]*np.exp(-self.r[i]*delay_hosp[:,0])))
         if verbose:
             print('Probabilities of hospitalisation: ', p_hosp)
+        EI_dist = EI_dist_covid(p_reported)
         self.sir = []
         time_after_lockdown = (date.datetime.strptime(end_of_run, self.date_format)-
                                date.datetime.strptime(self.lockdown_end_date, self.date_format)).days
@@ -407,15 +441,43 @@ class FitPatches(object):
         self.ax_tot.grid(True)
     
     def plot_fit_init(self, deaths_tot):
-        self.tot_fitter = lockdown.Fitter(deaths_tot, self.lockdown_date, self.delay_deaths)
+        tick_interval = 21
+        self.tot_fitter = Fitter(deaths_tot, self.lockdown_date, self.delay_deaths)
         self.tot_fitter.fit_init('2020-03-01', self.end_fit_init)
         
-        self.fig, self.init_axs = plt.subplots(1, 2, sharey = True, dpi = 100, figsize = (10, 12))
-        for i in np.arange(2):
-            self.init_axs[i].scatter(self.tot_fitter.data['cumul'])
-            for j in np.arange(self.n):
-                self.init_axs[i].scatter(self.death_fitters[j].data['cumul'])
+        self.fig, self.init_axs = plt.subplots(1, 2, sharey = True, dpi = 100, figsize = (9, 9))
         
+        for i in np.arange(2):
+            points = self.init_axs[i].scatter(self.tot_fitter.data.index, self.tot_fitter.data['cumul'].values, marker = '+')
+            self.init_axs[i].plot(self.tot_fitter.index_init, self.tot_fitter.best_fit_init_cumul(), 
+                                  color = points.to_rgba(0), linestyle = 'dashdot')
+            for j in np.arange(self.n):
+                points = self.init_axs[i].scatter(self.death_fitters[j].data.index, self.death_fitters[j].data['cumul'].values,
+                                         marker = '+')
+                self.init_axs[i].plot(self.death_fitters[j].index_init, self.death_fitters[j].best_fit_init_cumul(),
+                                      color = points.to_rgba(0), linestyle = 'dashdot')
+            self.init_axs[i].set_yscale('log')
+            self.init_axs[i].grid(True)
+        self.fig.set_tight_layout(True)
+    
+    def plot_R0(self):
+        n = 100
+        p_reported = np.linspace(0, 1, n)
+        R0_pre = np.zeros((n, self.n))
+        R0_lock = np.zeros((n, self.n))
+        for i in np.arange(n):
+            EI_dist = EI_dist_covid(p_reported[i])
+            for j in np.arange(self.n):
+                R0_pre[i, j] = R0(self.r[j], EI_dist)
+                R0_lock[i, j] = R0(self.rE[j], EI_dist)
+        plt.figure(dpi = 100, figsize = (6, 6))
+        self.axs = plt.axes()
+        for i in np.arange(self.n):
+            self.axs.plot(p_reported, R0_pre[:,i], label = '$R_0$ before lockdown in ' + self.names[i])
+            self.axs.plot(p_reported, R0_lock[:,i], label = '$R_0$ during lockdown in ' + self.names[i])
+        self.axs.legend(loc = 'best')
+        self.axs.set_yscale('log')
+        self.axs.set_xlabel('Proportion of reported individuals')
     
     def plot_SIR_deaths_hosp(self):
         assert hasattr(self, 'sir')
