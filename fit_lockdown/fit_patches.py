@@ -39,6 +39,8 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    
     def __init__(self, deaths, hospitalisations, sizes):
         assert isinstance(deaths, pd.DataFrame) and isinstance(hospitalisations, pd.DataFrame)
         assert np.min(sizes) > 0
@@ -162,7 +164,9 @@ class FitPatches(object):
         fig.set_tight_layout(True)
             
     
-    def compute_sir(self, p_reported, p_death, delay_death, delay_hosp, end_of_run, Markov = False, verbose = True):
+    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True):
+        delay_hosp = delay_hosp_covid()
+        delay_death = delay_death_covid()
         p_hosp = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             p_hosp[i] = p_death*(self.hosp[n].values[1]/self.deaths[n].values[1])*(
@@ -278,19 +282,12 @@ class FitPatches(object):
     
     def _fit_reported(self, params):
         print(params)
-        delay_hosp = [6, 0] + [10, 1]*beta_dist(1.5, 1.2, 20)
-        # x = params[0]/(1+params[1])
-        # y = 2*x*params[1]/5
-        # delay_hosp_to_death = np.concatenate(([1, .15]*np.array([[1, 1]]), [1, .85]*(
-        #         [x, 0] + [y, 1]*beta_dist(1.5, 1.5, 20))), axis = 0)
-        x = params[0]/(1+params[1]/5)
-        y = 2*x*params[1]/5
-        delay_hosp_to_death = [x, 0] + [y, 1]*beta_dist(1.5, 1.5, 20)
-        delay_death = convol(delay_hosp, delay_hosp_to_death)
+        delay_hosp = delay_hosp_covid()
+        delay_death = delay_death_covid()
         E_dist = np.array([[3, 1]])
         I_dist = np.concatenate(([1, params[2]]*([3, 0] + [2, 1]*beta_dist(2, 2)),
                   [1, 1-params[2]]*([5, 0] + [10, 1]*beta_dist(2, 2))), axis = 0)
-        EI_dist = product_dist(E_dist, I_dist)
+        EI_dist = EI_dist_covid(params[0])
         f = .005
         self.compute_sir(EI_dist, f, delay_death, delay_hosp, end_of_run = '2020-05-11', verbose = True, Markov = False)
         return self.mean_error()
@@ -440,24 +437,66 @@ class FitPatches(object):
         self.ax_tot.set_title('Predicted and observed hospital deaths using the 3-patches model')
         self.ax_tot.grid(True)
     
-    def plot_fit_init(self, deaths_tot):
-        tick_interval = 21
+    def compute_deaths_tot(self):
+        assert hasattr(self, 'sir')
+        shifts = [sir.shift(sir.lockdown_time) for sir in self.sir]
+        j = np.argmax(shifts)
+        shifts = np.max(shifts)-shifts
+        self.deaths_tot = np.zeros(np.max([np.size(sir.times_death) for sir in self.sir]))
+        for (i, sir) in enumerate(self.sir):
+            self.deaths_tot[shifts[i]:] = self.deaths_tot[shifts[i]:] + sir.deaths
+        self.times_deaths_tot = self.sir[j].times_death-self.sir[j].lockdown_time
+        
+    
+    def plot_fit_init(self, deaths_tot, p_reported, p_death):
         self.tot_fitter = Fitter(deaths_tot, self.lockdown_date, self.delay_deaths)
         self.tot_fitter.fit_init('2020-03-01', self.end_fit_init)
+        self.observed_times_tot = self.index_to_time(self.tot_fitter.data.index)
+#        self.interval_fit = self.index_to_time(self.tot_fitter.index_init)
         
-        self.fig, self.init_axs = plt.subplots(1, 2, sharey = True, dpi = 100, figsize = (9, 9))
+        self.fig, self.init_axs = plt.subplots(1, 2, dpi = 200, figsize = (9, 5))
+        self.init_axs[0].set_ylabel('Cumulative number of hospital deaths')
+        self.init_axs[0].set_title('Without two-step measures')
+        self.init_axs[1].set_title('With two-step measures in Grand Est\nand Hauts-de-France')
         
+        # plot data
         for i in np.arange(2):
-            points = self.init_axs[i].scatter(self.tot_fitter.data.index, self.tot_fitter.data['cumul'].values, marker = '+')
-            self.init_axs[i].plot(self.tot_fitter.index_init, self.tot_fitter.best_fit_init_cumul(), 
-                                  color = points.to_rgba(0), linestyle = 'dashdot')
+            self.init_axs[i].plot(self.observed_times_tot, self.tot_fitter.data['cumul'].values, 
+                                  linestyle = 'dashed', linewidth = 1.2, color = self.colors[0])
+#            self.init_axs[i].plot(self.interval_fit, self.tot_fitter.best_fit_init_cumul(), 
+#                                  color = self.colors[0], linestyle = 'dashdot')
             for j in np.arange(self.n):
-                points = self.init_axs[i].scatter(self.death_fitters[j].data.index, self.death_fitters[j].data['cumul'].values,
-                                         marker = '+')
-                self.init_axs[i].plot(self.death_fitters[j].index_init, self.death_fitters[j].best_fit_init_cumul(),
-                                      color = points.to_rgba(0), linestyle = 'dashdot')
+                self.init_axs[i].plot(self.index_to_time(self.death_fitters[j].data.index), 
+                                      self.death_fitters[j].data['cumul'].values,
+                                      linestyle = 'dashed', linewidth = 1.2, color = self.colors[1+j])
+#                self.init_axs[i].plot(self.index_to_time(self.death_fitters[j].index_init), 
+#                                      self.death_fitters[j].best_fit_init_cumul(),
+#                                      color = self.colors[1+i], linestyle = 'dashdot')
             self.init_axs[i].set_yscale('log')
             self.init_axs[i].grid(True)
+        
+        # plot sir with two step measures
+        self.compute_sir(p_reported, p_death, '2020-05-30')
+        self.compute_deaths_tot()
+        self.init_axs[1].plot(self.times_deaths_tot, self.deaths_tot, linewidth = 1.5, color = self.colors[0])
+        for (i, sir) in enumerate(self.sir):
+            self.init_axs[1].plot(sir.times_death-sir.lockdown_time, sir.deaths, linewidth = 1.5,
+                         color = self.colors[1+i])
+        
+        self.r_GE = self.r[1]
+        self.compute_sir(p_reported, p_death, '2020-05-30')
+        self.compute_deaths_tot()
+        self.init_axs[0].plot(self.times_deaths_tot, self.deaths_tot, linewidth = 1.5, color = self.colors[0], 
+                     label = 'France')
+        for (i, sir) in enumerate(self.sir):
+            self.init_axs[0].plot(sir.times_death-sir.lockdown_time, sir.deaths, linewidth = 1.5,
+                         color = self.colors[1+i], label = self.names[i])
+        self.init_axs[0].legend(loc = 'best')
+        
+        for i in np.arange(2):
+            self.init_axs[i].set_ylim((.5, 4e4))
+            self.init_axs[i].set_xlim((-40, 40))
+            self.init_axs[i].set_xlabel('Time (days since lockdown)')
         self.fig.set_tight_layout(True)
     
     def plot_R0(self):
@@ -479,15 +518,36 @@ class FitPatches(object):
         self.axs.set_yscale('log')
         self.axs.set_xlabel('Proportion of reported individuals')
     
+    linestyles = ['solid', 'dashed', 'dashdot']
+    
+    def plot_immunity(self, f_values, p_reported, logscale = False):
+        self.fig, self.axs = plt.subplots(1, self.n, dpi = 200, figsize = (12, 4), sharey = True, sharex = True)
+        for i in np.arange(self.n):
+            self.axs[i].set_title(self.names[i])
+            self.axs[i].set_xlabel('Time (days since lockdown)')
+            self.axs[i].grid(True)
+            self.axs[i].yaxis.set_tick_params(which = 'both', labelleft = True)
+            if logscale:
+                self.axs[i].set_yscale('log')
+        self.axs[0].set_ylabel('Proportion of infected individuals (1-S)', fontsize = 11)
+        
+        for (j, f) in enumerate(f_values):
+            self.compute_sir(p_reported, f, '2020-06-15')
+            for (i, sir) in enumerate(self.sir):
+                self.axs[i].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
+                        label = 'f = %.2f%%' % (100*f), 
+                        linestyle = self.linestyles[np.mod(j, np.size(self.linestyles))])
+        self.axs[2].legend(loc = 'upper right', title = 'Infection fatality ratio')
+        self.fig.set_tight_layout(True)
+    
     def plot_SIR_deaths_hosp(self):
         assert hasattr(self, 'sir')
         self.fig, self.faxs = plt.subplots(self.n, 3, dpi = 200, figsize = (12, 12), sharex = False)
         self.faxs[0, 0].set_title('trajectory of the SEIR model')
         self.faxs[0, 1].set_title('Hospital admissions')
         self.faxs[0, 2].set_title('Hospital deaths')
-        self.faxs[self.n-1, 0].set_xlabel('Time since lockdown (days)')
-        self.faxs[self.n-1, 1].set_xlabel('Time since lockdown (days)')
-        self.faxs[self.n-1, 2].set_xlabel('Time since lockdown (days)')
+        for i in np.arange(self.n):
+            self.faxs[self.n-1, i].set_xlabel('Time (days since lockdown)')
         for (i, sir) in enumerate(self.sir):
             self.faxs[i,0].set_ylabel(self.names[i])
             self.faxs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0], label = '1-S')
@@ -523,6 +583,47 @@ class FitPatches(object):
             self.faxs[i,2].legend(loc = 'best')
             self.faxs[i,2].set_xlim((-7, np.max(self.observed_times_deaths)))
         self.fig.set_tight_layout(True)
+    
+    def plot_markov_vs_nonmarkov(self, p_reported, p_death):
+        self.fig, self.axs = plt.subplots(self.n, 3, dpi = 200, figsize = (11, 9))
+        self.axs[0,0].set_title('Proportion of infected individuals (1-S)')
+        self.axs[0,1].set_title('Daily hospital admissions')
+        self.axs[0,2].set_title('Daily hospital deaths')
+        for i in np.arange(3):
+            self.axs[self.n-1, i].set_xlabel('Time (days since lockdown)')
+        for i in np.arange(self.n):
+            self.axs[i,0].set_ylabel(self.names[i], fontsize = 12)
+            self.axs[i,0].set_ylim((-.01, .09))
+            for j in np.arange(3):
+                self.axs[i,j].grid(True)
+            
+        # plot data
+        for (k, fit_list) in enumerate([self.hosp_fitters, self.death_fitters]):
+            for (i, fitter) in enumerate(fit_list):
+                self.axs[i,1+k].plot(self.observed_times_deaths, fitter.data['daily'].values,
+                        linestyle = 'dashed', color = self.colors[k], linewidth = 1.2)
+        
+        self.compute_sir(p_reported, p_death, self.deaths.index[-1])
+        # plot non-Markov
+        for (i, sir) in enumerate(self.sir):
+            self.axs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0], 
+                    color = self.colors[2], label = 'non-Markovian SEIR model')
+            self.axs[i,1].plot(sir.times_daily_hosp-sir.lockdown_time, sir.daily_hosp, 
+                    color = self.colors[2], linewidth = 1.5)
+            self.axs[i,2].plot(sir.times_daily_deaths-sir.lockdown_time, sir.daily_deaths, 
+                    color = self.colors[2], linewidth = 1.5)
+        
+        self.compute_sir(p_reported, p_death, self.deaths.index[-1], Markov = True)
+        # plot Markov
+        for (i, sir) in enumerate(self.sir):
+            self.axs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
+                    linestyle = 'dashdot', color = self.colors[3], label = 'Markovian SEIR model')
+            self.axs[i,1].plot(sir.times_daily_hosp-sir.lockdown_time, sir.daily_hosp,
+                    linestyle = 'dashdot', color = self.colors[3], linewidth = 1.5)
+            self.axs[i,2].plot(sir.times_daily_deaths-sir.lockdown_time, sir.daily_deaths,
+                    linestyle = 'dashdot', color = self.colors[3], linewidth = 1.5)
+        self.axs[self.n-1,0].legend(loc = 'best')
+            
     
     def concat_sir(self):
         assert hasattr(self, 'sir')

@@ -12,7 +12,7 @@ import numpy as np
 import fit_lockdown as lockdown
 
 N = 20e6
-r = .3
+r = .27
 rE = -.05
 f = .005
 deaths_at_lockdown = 50
@@ -65,5 +65,5 @@ axs[0].set_xlim((start, end))
 axs[1].set_xlim((start, end))
 
 #axs[1].plot(sir_markov.times_death, 1e3*np.exp(rE*sir_markov.times_death))
-axs[0].set_ylim((2.5e3, 1.5e4))
+axs[0].set_ylim((1.5e3, 1e4))
 axs[1].set_ylim((1e1, 2e3))

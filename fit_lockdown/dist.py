@@ -79,6 +79,13 @@ def EI_dist_covid(p_reported, fixed_E = True, n = 10):
              [1, 1-p_reported]*([8, 0] + [4, 1]*beta_dist(2, 2, n))), axis = 0)
     return product_dist(E_dist, I_dist)
 
+def delay_hosp_covid(n = 20):
+    return [7, 0] + [10, 1]*beta_dist(1.5, 1.2, n)
+
+def delay_death_covid(n = 20):
+    delay_hosp_to_death = [.5, 0] + [10.5, 1]*beta_dist(1.5, 1.5, n)
+    return convol(delay_hosp_covid(n), delay_hosp_to_death)
+
 def R0(rho, EI_dist):
     return rho*np.sum(EI_dist[:,1]*EI_dist[:,2])/(
         np.sum(EI_dist[:,2]*np.exp(-rho*EI_dist[:,0])) - np.sum(EI_dist[:,2]*np.exp(-rho*(EI_dist[:,0]+EI_dist[:,1]))))
