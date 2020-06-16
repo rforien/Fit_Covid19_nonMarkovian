@@ -15,6 +15,7 @@ import scipy.optimize as optim
 import scipy.linalg as linalg
 import scipy.special as sp
 import time
+import copy
 
 #from .fit_lockdown import *
 #from .sir import *
@@ -164,9 +165,10 @@ class FitPatches(object):
         fig.set_tight_layout(True)
             
     
-    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True):
-        delay_hosp = delay_hosp_covid()
-        delay_death = delay_death_covid()
+    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, 
+                    delay_hosp = delay_hosp_covid(), delay_death = delay_death_covid()):
+        # delay_hosp = delay_hosp_covid()
+        # delay_death = delay_death_covid()
         p_hosp = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             p_hosp[i] = p_death*(self.hosp[n].values[1]/self.deaths[n].values[1])*(
@@ -282,53 +284,72 @@ class FitPatches(object):
     
     def _fit_reported(self, params):
         print(params)
-        delay_hosp = delay_hosp_covid()
-        delay_death = delay_death_covid()
-        E_dist = np.array([[3, 1]])
-        I_dist = np.concatenate(([1, params[2]]*([3, 0] + [2, 1]*beta_dist(2, 2)),
-                  [1, 1-params[2]]*([5, 0] + [10, 1]*beta_dist(2, 2))), axis = 0)
-        EI_dist = EI_dist_covid(params[0])
+        # delay_hosp = delay_hosp_covid()
+        # delay_death = delay_death_covid()
+        # E_dist = np.array([[3, 1]])
+        # I_dist = np.concatenate(([1, params[2]]*([3, 0] + [2, 1]*beta_dist(2, 2)),
+        #           [1, 1-params[2]]*([5, 0] + [10, 1]*beta_dist(2, 2))), axis = 0)
+        delay_hosp, delay_death = delay_hosp_death_covid(params[1], params[2]*params[1], 
+                                                         params[3], params[4]*params[3])
+        # print(np.sum(delay_hosp[:,0]*delay_hosp[:,1]), np.sum(delay_death[:,0]*delay_death[:,1]))
+        # EI_dist = EI_dist_covid(params[0])
         f = .005
-        self.compute_sir(EI_dist, f, delay_death, delay_hosp, end_of_run = '2020-05-11', verbose = True, Markov = False)
+        self.compute_sir(params[0], f, delay_death = delay_death, delay_hosp = delay_hosp, end_of_run = '2020-05-11', verbose = False, Markov = False)
         return self.mean_error()
     
     #best fit so far : [38, 36, .85] keep this for now and do another run later ?
     # choose a simple distribution for delay hosp to death
     def fit_mcmc(self, T, init_params):
-        beta = 1
+        beta = 10
         T = int(T)
         params = init_params
         current_fit = self._fit_reported(params)
         self.mcmc_traj = np.zeros((T, np.size(params)))
         self.mcmc_fit = np.zeros(T)
         for i in np.arange(T):
-            p = self.propose(params)
+            p = self.propose(copy.copy(params))
+            # print(params, p)
             fit = self._fit_reported(p)
+            # print(current_fit, fit)
             print(np.exp(-beta*(fit-current_fit)))
             if fit < current_fit or np.random.binomial(1, np.exp(-beta*(fit-current_fit))):
                 print('accept')
-                params = p
-                current_fit = fit
+                params = copy.copy(p)
+                current_fit = copy.copy(fit)
             self.mcmc_traj[i,:] = params
-            self.mcmc_fit[i] = fit
+            self.mcmc_fit[i] = current_fit
         k = np.argmin(self.mcmc_fit)
         self.best_fit = self.mcmc_traj[k,:]
         print(self.best_fit)
         
+    scale = np.array([.1, 1, .1, 1, .1])
+    up_bound = np.array([1, 15, 1, 25, 1])
+    low_bound = np.zeros(5)
     def propose(self, params):
-        k = np.random.choice(np.arange(np.size(params)))
-#        print(k)
-        if k in [0, 1]:
-            params[k] = np.abs(params[k] + np.random.normal(0, 1))
-            if k == 0 and params[0] > 25:
-                params[0] = np.maximum(0, 2*25-params[0])
-        elif k == 2:
-            if params[k] - .05 < 0:
-                params[k] += .05
-            elif params[k] + .05 > 1:
-                params[k] -= .05
-            else:
-                params[k] += (2*np.random.binomial(1, .5)-1)*.05
+        k = np.random.choice(np.arange(np.size(params)), p = [.2, .3, .1, .3, .1])
+        # print(k)
+        params[k] = params[k] + np.random.normal(0, self.scale[k])
+        params = np.minimum(self.up_bound, self.low_bound + np.abs(self.low_bound - params))
+        params = np.maximum(self.low_bound, self.up_bound - np.abs(self.up_bound - params))
+        # if k in [1, 3]:
+        #     params[k] = np.abs(params[k] + np.random.normal(0, 1))
+        #     if k == 3 and params[k] > 25:
+        #         params[k] = np.maximum(0, 2*25-params[k])
+        #     if k == 1 and params[k] > 15:
+        #         params[k] = np.maximum(0, 2*15-params[k])
+        # elif k in [2, 4]:
+        #     params[k] += (2*np.random.binomial(1, .5)-1)*.1
+        #     if params[k] >= 1:
+        #         params[k] = 0.9
+        #     elif params[k] < 0:
+        #         params[k] = .1
+        # elif k == 0:
+        #     if params[k] - .05 < 0:
+        #         params[k] += .05
+        #     elif params[k] + .05 > 1:
+        #         params[k] -= .05
+        #     else:
+        #         params[k] += (2*np.random.binomial(1, .5)-1)*.05
         return params
     
     def error_at(self, date_death, date_hosp):
@@ -584,8 +605,8 @@ class FitPatches(object):
             self.faxs[i,2].set_xlim((-7, np.max(self.observed_times_deaths)))
         self.fig.set_tight_layout(True)
     
-    def plot_markov_vs_nonmarkov(self, p_reported, p_death):
-        self.fig, self.axs = plt.subplots(self.n, 3, dpi = 200, figsize = (11, 9))
+    def plot_markov_vs_nonmarkov(self, p_reported, p_death, logscale = False):
+        self.fig, self.axs = plt.subplots(self.n, 3, dpi = 100, figsize = (11, 9))
         self.axs[0,0].set_title('Proportion of infected individuals (1-S)')
         self.axs[0,1].set_title('Daily hospital admissions')
         self.axs[0,2].set_title('Daily hospital deaths')
@@ -593,9 +614,12 @@ class FitPatches(object):
             self.axs[self.n-1, i].set_xlabel('Time (days since lockdown)')
         for i in np.arange(self.n):
             self.axs[i,0].set_ylabel(self.names[i], fontsize = 12)
-            self.axs[i,0].set_ylim((-.01, .09))
+            if not logscale:
+                self.axs[i,0].set_ylim((-.01, .09))
             for j in np.arange(3):
                 self.axs[i,j].grid(True)
+                if logscale:
+                    self.axs[i,j].set_yscale('log')
             
         # plot data
         for (k, fit_list) in enumerate([self.hosp_fitters, self.death_fitters]):

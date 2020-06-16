@@ -86,6 +86,14 @@ def delay_death_covid(n = 20):
     delay_hosp_to_death = [.5, 0] + [10.5, 1]*beta_dist(1.5, 1.5, n)
     return convol(delay_hosp_covid(n), delay_hosp_to_death)
 
+def delay_hosp_death_covid(mean_hosp, offset_hosp, mean_death, offset_death, n = 20):
+    assert mean_hosp > offset_hosp
+    assert mean_death > offset_death
+    delay_hosp = [offset_hosp, 0] + [(mean_hosp-offset_hosp)*2, 1]*beta_dist(2, 2, n)
+    delay_hosp_to_death = [offset_death, 0] + [(mean_death-offset_death)*2, 1]*beta_dist(2, 2, n)
+    delay_death = convol(delay_hosp, delay_hosp_to_death)
+    return delay_hosp, delay_death
+
 def R0(rho, EI_dist):
     return rho*np.sum(EI_dist[:,1]*EI_dist[:,2])/(
         np.sum(EI_dist[:,2]*np.exp(-rho*EI_dist[:,0])) - np.sum(EI_dist[:,2]*np.exp(-rho*(EI_dist[:,0]+EI_dist[:,1]))))
