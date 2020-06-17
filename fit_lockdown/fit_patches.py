@@ -323,7 +323,7 @@ class FitPatches(object):
         print(self.best_fit)
         
     scale = np.array([.1, 1, .1, 1, .1])
-    up_bound = np.array([1, 15, 1, 25, 1])
+    up_bound = np.array([1, 15, .99, 25, .99])
     low_bound = np.zeros(5)
     def propose(self, params):
         k = np.random.choice(np.arange(np.size(params)), p = [.2, .3, .1, .3, .1])
@@ -542,7 +542,7 @@ class FitPatches(object):
     linestyles = ['solid', 'dashed', 'dashdot']
     
     def plot_immunity(self, f_values, p_reported, logscale = False):
-        self.fig, self.axs = plt.subplots(1, self.n, dpi = 200, figsize = (12, 4), sharey = True, sharex = True)
+        self.fig, self.axs = plt.subplots(1, self.n, dpi = 150, figsize = (12, 4), sharey = True, sharex = True)
         for i in np.arange(self.n):
             self.axs[i].set_title(self.names[i])
             self.axs[i].set_xlabel('Time (days since lockdown)')

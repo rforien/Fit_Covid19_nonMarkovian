@@ -50,7 +50,7 @@ S = [sir_markov, sir_fix, sir_covid, sir_gamma]
 names = ['Markovian SEIR model', 'SEIR model with fixed durations',
          'non-Markovian SEIR model (COVID-19)', 'non-Markovian SEIR model (Gamma)']
 
-plt.figure(dpi=250)
+plt.figure(dpi=150)
 
 contact_rates = np.zeros(np.size(rho))
 
@@ -73,4 +73,5 @@ plt.grid(True)
 plt.ylabel(r'$R_0$')
 plt.xlabel(r'growth rate ($\rho$)')
 plt.xlim((-.06, .3))
-plt.ylim((0, 7))
+plt.ylim((0, 5.5))
+plt.tight_layout(True)

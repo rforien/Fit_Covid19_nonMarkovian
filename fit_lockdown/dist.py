@@ -75,7 +75,7 @@ def EI_dist_covid(p_reported, fixed_E = True, n = 10):
         E_dist = np.array([[3, 1]])
     else:
         E_dist = [2, 0] + [2, 1]*beta_dist(2, 2, n)
-    I_dist = np.concatenate(([2, p_reported]*([3, 0] + beta_dist(2, 2, n)),
+    I_dist = np.concatenate(([1, p_reported]*([3, 0] + beta_dist(2, 2, n)),
              [1, 1-p_reported]*([8, 0] + [4, 1]*beta_dist(2, 2, n))), axis = 0)
     return product_dist(E_dist, I_dist)
 
