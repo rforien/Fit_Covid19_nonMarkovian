@@ -11,7 +11,7 @@ import numpy as np
 
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-10-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-16-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -76,7 +76,7 @@ admis_patches.columns = deaths_patches.columns
 #EI_dist = lockdown.product_dist(E_dist, I_dist)
 #EI_dist = np.array([[3.5, 2, .17], [3.5, 5, .67], [3.5, 14, .16]]) # best fit
 EI_dist = np.array([[3.5, 3, .8], [3.5, 10, .2]])
-f = .003
+f = .005
 #f = .0037 # estimate from germany
 #delays = np.array([[21, 1]])
 #delay_death = np.transpose(np.vstack((np.linspace(11, 25, 20), np.ones(20)/20)))
@@ -91,17 +91,18 @@ delay_death = ([7, 0] + [20, 1]*lockdown.beta_dist(2, 1.5, 20))
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
 #fit_total.plot_fit_init(France, .8, .005)
+fit_total.plot_fit_lockdown()
 # fit_total.plot_markov_vs_nonmarkov(.8, .005, logscale = True)
 # fit_total.plot_immunity([.003, .005, .01], .8, True)
 # print(fit_total._fit_reported(np.array([.5, 10, .5, 10, .5])))
-fit_total.fit_mcmc(5e3, np.array([.5, 10, .5, 10, .5]))
+#fit_total.fit_mcmc(5e3, np.array([.5, 10, .5, 10, .5]))
 #fit_total.fit_data(np.array([.5, .5, .5]), bounds = ((0, 1), (0, 1), (0, 1)))
 #fit_total._fit_fixed([0.7, 0.5, .5, .5])
-#fit_total.compute_sir(.8, f, end_of_run = '2020-06-01', Markov = False)
+fit_total.compute_sir(.8, f, end_of_run = '2020-06-17', Markov = False)
 ##fit_total.run_patches(300, MigMat)
 ###print(fit_total._fit_sir(p))
 ##fit_total.plot_deaths_tot(France)
-#fit_total.plot_deaths_hosp()
+fit_total.plot_deaths_hosp()
 #fit_total.fig.suptitle('Predicted and observed deaths and hospital \nadmissions using the non-Markovian SEIR model')
 #[sir.plot() for sir in fit_total.sir]
 #fit_total.plot_SIR_deaths_hosp()
