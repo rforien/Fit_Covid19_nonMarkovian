@@ -300,7 +300,7 @@ class FitPatches(object):
     #best fit so far : [38, 36, .85] keep this for now and do another run later ?
     # choose a simple distribution for delay hosp to death
     def fit_mcmc(self, T, init_params):
-        beta = 10
+        beta = 15
         T = int(T)
         params = init_params
         current_fit = self._fit_reported(params)
@@ -323,8 +323,8 @@ class FitPatches(object):
         print(self.best_fit)
         
     scale = np.array([.1, 1, .1, 1, .1])
-    up_bound = np.array([1, 15, .99, 25, .99])
-    low_bound = np.zeros(5)
+    up_bound = np.array([1, 18, .99, 25, .99])
+    low_bound = np.array([0, 10, 0, 0, 0])
     def propose(self, params):
         k = np.random.choice(np.arange(np.size(params)), p = [.2, .3, .1, .3, .1])
         # print(k)
@@ -430,7 +430,7 @@ class FitPatches(object):
             self.dhaxs[i,1].grid(True)
         self.dhaxs[0,0].set_title('Cumulative data')
         self.dhaxs[0,1].set_title('Daily data')
-        self.dhaxs[0,0].legend(loc = 'best')
+        self.fig.legend()
         self.dhaxs[self.n-1,0].set_xlabel('Time since lockdown (days)')
         self.dhaxs[self.n-1,1].set_xlabel('Time since lockdown (days)')
     
