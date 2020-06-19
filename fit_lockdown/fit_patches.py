@@ -40,6 +40,8 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
+    dpi = 200
+    
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
     def __init__(self, deaths, hospitalisations, sizes):
@@ -90,7 +92,7 @@ class FitPatches(object):
     
     def plot_fit(self):
         tick_interval = 21
-        self.fig, self.axs = plt.subplots(self.n, 2, dpi = 200, figsize = (10, 16), sharex = True)
+        self.fig, self.axs = plt.subplots(self.n, 2, dpi = self.dpi, figsize = (10, 16), sharex = True)
         self.axs[0,0].set_title('Cumulative data')
         self.axs[0,1].set_title('Daily data')
         for i in np.arange(self.n):
@@ -137,7 +139,7 @@ class FitPatches(object):
         tick_interval = 20
         m = int(np.ceil(np.sqrt(self.n)))
         gs = gridspec.GridSpec(m, m)
-        fig = plt.figure(dpi = 100, figsize = (12, 8))
+        fig = plt.figure(dpi = self.dpi, figsize = (12, 8))
         lines = []
         for i in np.arange(self.n):
             x = np.floor_divide(i, m)
@@ -166,9 +168,11 @@ class FitPatches(object):
             
     
     def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, 
-                    delay_hosp = delay_hosp_covid(), delay_death = delay_death_covid()):
+                    params_delays = np.array([14, .2, 5, .5])):
         # delay_hosp = delay_hosp_covid()
         # delay_death = delay_death_covid()
+        delay_hosp, delay_death = delay_hosp_death_covid(params_delays[0], params_delays[1]*params_delays[0], 
+                                                         params_delays[2], params_delays[3]*params_delays[2])
         p_hosp = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
             p_hosp[i] = p_death*(self.hosp[n].values[1]/self.deaths[n].values[1])*(
@@ -289,12 +293,12 @@ class FitPatches(object):
         # E_dist = np.array([[3, 1]])
         # I_dist = np.concatenate(([1, params[2]]*([3, 0] + [2, 1]*beta_dist(2, 2)),
         #           [1, 1-params[2]]*([5, 0] + [10, 1]*beta_dist(2, 2))), axis = 0)
-        delay_hosp, delay_death = delay_hosp_death_covid(params[1], params[2]*params[1], 
-                                                         params[3], params[4]*params[3])
+#        delay_hosp, delay_death = delay_hosp_death_covid(params[1], params[2]*params[1], 
+#                                                         params[3], params[4]*params[3])
         # print(np.sum(delay_hosp[:,0]*delay_hosp[:,1]), np.sum(delay_death[:,0]*delay_death[:,1]))
         # EI_dist = EI_dist_covid(params[0])
         f = .005
-        self.compute_sir(params[0], f, delay_death = delay_death, delay_hosp = delay_hosp, end_of_run = '2020-05-11', verbose = False, Markov = False)
+        self.compute_sir(params[0], f, params_delays = params[1:], end_of_run = '2020-05-11', verbose = False, Markov = False)
         return self.mean_error()
     
     #best fit so far : [38, 36, .85] keep this for now and do another run later ?
@@ -404,7 +408,7 @@ class FitPatches(object):
         print(self.result.x)
     
     def plot_deaths_hosp(self, logscale = True):
-        self.fig, self.dhaxs = plt.subplots(self.n, 2, dpi = 200, figsize = (10, 16), sharex = True)
+        self.fig, self.dhaxs = plt.subplots(self.n, 2, dpi = self.dpi, figsize = (10, 16), sharex = True)
         for (i, sir) in enumerate(self.sir):
             p0 = self.dhaxs[i,0].plot(sir.times_death-sir.lockdown_time, sir.deaths, label = 'predicted deaths')
             self.dhaxs[i,1].plot(sir.times_daily_deaths-sir.lockdown_time, sir.daily_deaths, color = p0[0].get_color())
@@ -436,7 +440,7 @@ class FitPatches(object):
     
     def plot_deaths_tot(self, deaths_tot):
         self.observed_times_deaths_tot = self.index_to_time(deaths_tot.index)
-        plt.figure(dpi=200, figsize = (7,7))
+        plt.figure(dpi=self.dpi, figsize = (7,7))
         self.ax_tot = plt.axes()
         self.ax_tot.plot(self.observed_times_deaths_tot, deaths_tot.values, linestyle = 'dashed', 
                          label = 'observed deaths in France')
@@ -475,7 +479,7 @@ class FitPatches(object):
         self.observed_times_tot = self.index_to_time(self.tot_fitter.data.index)
 #        self.interval_fit = self.index_to_time(self.tot_fitter.index_init)
         
-        self.fig, self.init_axs = plt.subplots(1, 2, dpi = 200, figsize = (9, 5))
+        self.fig, self.init_axs = plt.subplots(1, 2, dpi = self.dpi, figsize = (9, 5))
         self.init_axs[0].set_ylabel('Cumulative number of hospital deaths')
         self.init_axs[0].set_title('Without two-step measures')
         self.init_axs[1].set_title('With two-step measures in Grand Est\nand Hauts-de-France')
@@ -504,6 +508,7 @@ class FitPatches(object):
             self.init_axs[1].plot(sir.times_death-sir.lockdown_time, sir.deaths, linewidth = 1.5,
                          color = self.colors[1+i])
         
+        # plot sir without two step measures
         self.r_GE = self.r[1]
         self.compute_sir(p_reported, p_death, '2020-05-30')
         self.compute_deaths_tot()
@@ -530,7 +535,7 @@ class FitPatches(object):
             for j in np.arange(self.n):
                 R0_pre[i, j] = R0(self.r[j], EI_dist)
                 R0_lock[i, j] = R0(self.rE[j], EI_dist)
-        plt.figure(dpi = 100, figsize = (6, 6))
+        plt.figure(dpi = self.dpi, figsize = (6, 6))
         self.axs = plt.axes()
         for i in np.arange(self.n):
             self.axs.plot(p_reported, R0_pre[:,i], label = '$R_0$ before lockdown in ' + self.names[i])
@@ -542,7 +547,7 @@ class FitPatches(object):
     linestyles = ['solid', 'dashed', 'dashdot']
     
     def plot_immunity(self, f_values, p_reported, logscale = False):
-        self.fig, self.axs = plt.subplots(1, self.n, dpi = 150, figsize = (12, 4), sharey = True, sharex = True)
+        self.fig, self.axs = plt.subplots(1, self.n, dpi = self.dpi, figsize = (12, 4), sharey = True, sharex = True)
         for i in np.arange(self.n):
             self.axs[i].set_title(self.names[i])
             self.axs[i].set_xlabel('Time (days since lockdown)')
@@ -563,7 +568,7 @@ class FitPatches(object):
     
     def plot_SIR_deaths_hosp(self):
         assert hasattr(self, 'sir')
-        self.fig, self.faxs = plt.subplots(self.n, 3, dpi = 200, figsize = (12, 12), sharex = False)
+        self.fig, self.faxs = plt.subplots(self.n, 3, dpi = self.dpi, figsize = (12, 12), sharex = False)
         self.faxs[0, 0].set_title('trajectory of the SEIR model')
         self.faxs[0, 1].set_title('Hospital admissions')
         self.faxs[0, 2].set_title('Hospital deaths')
@@ -606,7 +611,7 @@ class FitPatches(object):
         self.fig.set_tight_layout(True)
     
     def plot_markov_vs_nonmarkov(self, p_reported, p_death, logscale = False):
-        self.fig, self.axs = plt.subplots(self.n, 3, dpi = 100, figsize = (11, 9))
+        self.fig, self.axs = plt.subplots(self.n, 3, dpi = self.dpi, figsize = (11, 9))
         self.axs[0,0].set_title('Proportion of infected individuals (1-S)')
         self.axs[0,1].set_title('Daily hospital admissions')
         self.axs[0,2].set_title('Daily hospital deaths')
@@ -615,7 +620,7 @@ class FitPatches(object):
         for i in np.arange(self.n):
             self.axs[i,0].set_ylabel(self.names[i], fontsize = 12)
             if not logscale:
-                self.axs[i,0].set_ylim((-.01, .09))
+                self.axs[i,0].set_ylim((-.01, .11))
             for j in np.arange(3):
                 self.axs[i,j].grid(True)
                 if logscale:
@@ -646,7 +651,7 @@ class FitPatches(object):
                     linestyle = 'dashdot', color = self.colors[3], linewidth = 1.5)
             self.axs[i,2].plot(sir.times_daily_deaths-sir.lockdown_time, sir.daily_deaths,
                     linestyle = 'dashdot', color = self.colors[3], linewidth = 1.5)
-        self.axs[self.n-1,0].legend(loc = 'best')
+        self.fig.legend(loc = 'upper right', fontsize = 12)
             
     
     def concat_sir(self):

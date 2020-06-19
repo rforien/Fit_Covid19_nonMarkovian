@@ -50,7 +50,7 @@ S = [sir_markov, sir_fix, sir_covid, sir_gamma]
 names = ['Markovian SEIR model', 'SEIR model with fixed durations',
          'non-Markovian SEIR model (COVID-19)', 'non-Markovian SEIR model (Gamma)']
 
-plt.figure(dpi=150)
+plt.figure(dpi=200)
 
 contact_rates = np.zeros(np.size(rho))
 
@@ -62,16 +62,17 @@ for (i, sir) in enumerate(S):
             contact_rates[j] = sir.contact_rate(r)
     plt.plot(rho, infect*contact_rates, label = names[i], linewidth = 1.2)
 
-plt.vlines((-.049, .27), 0, 1e2, linestyle = 'dashed', linewidth = 1)
+#plt.vlines((-.049, .27), 0, 1e2, linestyle = 'dashed', linewidth = 1)
     
-#plt.vlines((-.06, .3), 0, 7, linewidth = 1)
-#plt.hlines((0,7), -.06, .3, linewidth = 1)
+plt.vlines((-.06, .3), 0, 7, linewidth = 1)
+plt.hlines((0,7), -.06, .3, linewidth = 1)
 
 plt.legend(loc = 'best')
-#plt.yscale('log')
+plt.yscale('log')
 plt.grid(True)
 plt.ylabel(r'$R_0$')
 plt.xlabel(r'growth rate ($\rho$)')
-plt.xlim((-.06, .3))
-plt.ylim((0, 5.5))
+#plt.xlim((-.06, .3))
+#plt.ylim((0, 5.5))
+plt.ylim((1e-3, 2e2))
 plt.tight_layout(True)
