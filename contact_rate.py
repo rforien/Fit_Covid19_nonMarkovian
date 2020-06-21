@@ -13,7 +13,7 @@ import fit_lockdown as lockdown
 rho = np.linspace(-.6, 1, 200)
 
 
-EI_covid = lockdown.EI_dist_covid(.8, fixed_E = False, n = 50)
+EI_covid = lockdown.EI_dist_covid(.6, fixed_E = False, n = 50)
 
 incub = np.sum(EI_covid[:,0]*EI_covid[:,2])
 infect = np.sum(EI_covid[:,1]*EI_covid[:,2])
@@ -62,17 +62,17 @@ for (i, sir) in enumerate(S):
             contact_rates[j] = sir.contact_rate(r)
     plt.plot(rho, infect*contact_rates, label = names[i], linewidth = 1.2)
 
-#plt.vlines((-.049, .27), 0, 1e2, linestyle = 'dashed', linewidth = 1)
+plt.vlines((-.049, .27), 0, 1e2, linestyle = 'dashed', linewidth = 1)
     
-plt.vlines((-.06, .3), 0, 7, linewidth = 1)
-plt.hlines((0,7), -.06, .3, linewidth = 1)
+#plt.vlines((-.06, .3), 0, 7, linewidth = 1)
+#plt.hlines((0,7), -.06, .3, linewidth = 1)
 
 plt.legend(loc = 'best')
-plt.yscale('log')
+#plt.yscale('log')
 plt.grid(True)
 plt.ylabel(r'$R_0$')
 plt.xlabel(r'growth rate ($\rho$)')
-#plt.xlim((-.06, .3))
-#plt.ylim((0, 5.5))
-plt.ylim((1e-3, 2e2))
+plt.xlim((-.06, .3))
+plt.ylim((0, 5.5))
+#plt.ylim((1e-3, 2e2))
 plt.tight_layout(True)

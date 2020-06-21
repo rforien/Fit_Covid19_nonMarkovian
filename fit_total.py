@@ -29,6 +29,9 @@ data['cumul_hosp'] = data['hosp'] + data['rad'] + data['dc']
 admissions = data.pivot(index = 'jour', columns = 'dep', values = 'cumul_hosp')
 admissions.drop(overseas, axis = 1)
 
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-06-20-19h00.csv', delimiter = ';')
+rea = data_new.pivot(index = 'jour', columns = 'dep', values = 'incid_rea')
+
 N_france = 67e6
 
 IDF = ['92', '75', '77', '78', '91', '93', '94', '95']
@@ -69,6 +72,12 @@ admis_out = admissions[Out].sum(axis=1)
 admis_patches = pd.concat((admis_IDF, admis_GEHdF, admis_out), axis = 1)
 admis_patches.columns = deaths_patches.columns
 
+admis_France = admissions[IDF + GrandEst + HautsdeFrance + Out].sum(axis = 1)
+
+rea_GEHdF = rea[GrandEst + HautsdeFrance].sum(axis = 1)
+rea_IdF = rea[IDF].sum(axis = 1)
+rea_out = rea[Out].sum(axis = 1)
+
 #E_dist = lockdown.beta_dist(2, 2)
 #E_dist[:,0] = 2+3*E_dist[:,0]
 #I_dist = lockdown.beta_dist(2, 1.1)
@@ -88,17 +97,35 @@ delay_death = ([7, 0] + [20, 1]*lockdown.beta_dist(2, 1.5, 20))
 # for i in np.arange(4):
 #     MigMat[i] = .01*np.array([[-1, .5, .5], [.5, -1, .5], [.5, .5, -1]])
 
+
+
 fit_total = lockdown.FitPatches(deaths_patches, admis_patches, [N_idf, N_GE + N_HdF, N_out])
 fit_total.fit_patches()
+
+deaths_fit_France = lockdown.Fitter(France, fit_total.lockdown_date, fit_total.delay_deaths)
+deaths_fit_France.fit_init('2020-03-01', fit_total.end_fit_init)
+deaths_fit_France.fit_lockdown(fit_total.end_lockdown_fit)
+deaths_fit_France.fit_post_lockdown(fit_total.start_post_lockdown_deaths_fit, fit_total.end_post_lockdown_fit)
+print('Growth rates in France (hospital deaths): ', deaths_fit_France.r, deaths_fit_France.rE, deaths_fit_France.r_post)
+
+admis_fit_France = lockdown.Fitter(admis_France, fit_total.lockdown_date, fit_total.delay_hosp)
+admis_fit_France.fit_init(fit_total.start_fit_init, fit_total.end_fit_init)
+admis_fit_France.fit_lockdown(fit_total.end_lockdown_fit)
+admis_fit_France.fit_post_lockdown(fit_total.start_post_lockdown_hosp_fit, fit_total.end_post_lockdown_fit)
+print('Growth rates in France (hospital admissions): ', admis_fit_France.r, admis_fit_France.rE, admis_fit_France.r_post)
+
 #fit_total.plot_fit_init(France, .6, .005)
-#fit_total.plot_fit_lockdown()
+fit_total.plot_fit_lockdown()
+fit_total.axs[0].plot(rea_IdF, color = 'g', linestyle = 'dashed', label = 'ICU admissons')
+fit_total.axs[1].plot(rea_GEHdF, color = 'g', linestyle = 'dashed', label = 'ICU admissons')
+fit_total.axs[2].plot(rea_out, color = 'g', linestyle = 'dashed', label = 'ICU admissons')
 #fit_total.plot_markov_vs_nonmarkov(.6, .005, logscale = False)
-fit_total.plot_immunity([.003, .005, .01], .6, False)
-#print(fit_total._fit_reported(np.array([.4, 14.7, .2, 5, .5])))
+#fit_total.plot_immunity([.002, .005, .01], .6, False)
+#print(fit_total._fit_reported(np.array([.6, 14.8, .18, 4.7, .9])))
 #fit_total.fit_mcmc(5e3, np.array([.8, 14, .2, 7, .5]))
 #fit_total.fit_data(np.array([.5, .5, .5]), bounds = ((0, 1), (0, 1), (0, 1)))
 #fit_total._fit_fixed([0.7, 0.5, .5, .5])
-#fit_total.compute_sir(.33, f, end_of_run = '2020-06-17', Markov = False)
+#fit_total.compute_sir(.6, f, end_of_run = '2020-06-17', Markov = False)
 ##fit_total.run_patches(300, MigMat)
 ###print(fit_total._fit_sir(p))
 ##fit_total.plot_deaths_tot(France)

@@ -165,7 +165,7 @@ class SIR_lockdown(SIR):
         self.run(lockdown_length, record = True)
         if verbose:
             print('State at the end of lockdown: ', self.Z)
-        self.l = self.contact_rate(r_after_lockdown)
+        self.l = self.contact_rate(r_after_lockdown)/self.Z[0]
         self.run(time_after_lockdown, record = True)
 #        print('Final state: ', self.Z)
         self.lockdown_length = lockdown_length
@@ -193,7 +193,7 @@ class SIR_lockdown(SIR):
         self.run(lockdown_length, record = True)
         if verbose:
             print("State at the end of lockdown: ", self.Z)
-        self.l = self.contact_rate(r_after_lockdown)
+        self.l = self.contact_rate(r_after_lockdown)/self.Z[0]
         self.run(time_after_lockdown, record = True)
         self.lockdown_length = lockdown_length
     
