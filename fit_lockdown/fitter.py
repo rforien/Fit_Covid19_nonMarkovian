@@ -13,6 +13,108 @@ import pandas as pd
 import scipy.optimize as optim
 import datetime as date
 
+class MultiFitter(object):
+    date_format = '%Y-%m-%d'
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    fit_colors = ['#d62728', '#8c564b', '#00AA00']
+    
+    def __init__(self, cumul):
+        if isinstance(cumul, pd.Series):
+            self.cumul = pd.DataFrame(cumul)
+        elif isinstance(cumul, pd.DataFrame):
+            self.cumul = cumul
+        else:
+            assert False, 'cumul should be either a Series or a DataFrame.'
+        self.n = np.size(cumul, axis = 1)
+        self.columns = cumul.columns
+        self.daily = self.cumul.diff()
+        self.params = pd.DataFrame()
+        self.scales = pd.DataFrame()
+        self.starts = pd.DataFrame()
+        self.end = pd.DataFrame()
+    
+    def fit(self, start, end, delays, fit_key):
+        assert end in self.cumul.index
+        assert np.size(delays) == self.n and np.min(delays) >= 0
+        # compute starting dates, lengths and scales
+        starts = []
+        lengths = np.zeros(self.n)
+        scale = np.zeros(2*self.n)
+        start_date = date.datetime.strptime(start, self.date_format)
+        end_date = date.datetime.strptime(end, self.date_format)
+        for (i, col) in enumerate(self.columns):
+            d = start_date + date.timedelta(days = int(delays[i]))
+            starts.append(d.strftime(self.date_format))
+            assert starts[i] in self.cumul.index
+            lengths[i] = (end_date-d).days+1
+            scale[i] = self.cumul[col][starts[i]]
+            scale[self.n+i] = -(self.cumul[col][end]-
+                 self.cumul[col][starts[i]])
+        init_params = np.concatenate((np.ones(2*self.n), [-.1]))
+        result = optim.minimize(self._error, init_params, args = (
+                starts, end, lengths, scale), method = 'Nelder-Mead')
+        self.params[fit_key] = result.x
+        self.scales[fit_key] = scale
+        self.starts[fit_key] = starts
+        self.end[fit_key] = [end]
+        
+    def _error(self, params, starts, end, lengths, scale):
+        E = 0
+        for (i, col) in enumerate(self.columns):
+            x = self.cumul[col][starts[i]:end].values
+            y = self.exp_fit(params, i, scale, np.arange(lengths[i]))
+            E += np.sum(np.abs(1-y/x)**2)
+        return E
+    
+    def exp_fit(self, params, i, scale, t):
+        return (scale[i]*params[i] + scale[self.n+i]*params[self.n+i]*(
+                np.exp(params[2*self.n]*t)-1))
+    
+    def exp_fit_daily(self, params, i, scale, t):
+        return (scale[self.n+i]*params[self.n+i]*
+                params[2*self.n]*np.exp(params[2*self.n]*t))
+    
+    def fit_value_at(self, column, fit, at_date, daily = False):
+        assert fit in self.params.columns
+        assert column in self.columns
+        i = np.argwhere(self.columns == column)[0][0]
+        start = date.datetime.strptime(self.starts[fit][i], self.date_format)
+        d = date.datetime.strptime(at_date, self.date_format)
+        t = (d-start).days
+        if daily:
+            return self.exp_fit_daily(self.params[fit], i, self.scales[fit], t)
+        else:
+            return self.exp_fit(self.params[fit], i, self.scales[fit], t)
+    
+    def plot(self, axes = None, fits = None):
+        tick_interval = 20
+        if axes == None:
+            plt.figure(dpi = 200)
+            axes = plt.axes()
+        if fits == None:
+            fits = self.params.columns
+        else:
+            for fit in fits:
+                assert fit in self.params.columns
+        data_lines = []
+        for (i, col) in enumerate(self.columns):
+            line, = axes.plot(self.daily[col].index, self.daily[col].values, 
+                      linestyle = 'dashed', color = self.colors[i])
+            data_lines.append(line)
+            for (j, fit) in enumerate(fits):
+                index = self.cumul[self.starts[fit][i]:self.end[fit][0]].index
+                line, = axes.plot(index, self.exp_fit_daily(self.params[fit].values, i,
+                            self.scales[fit], np.arange(np.size(index))), color = self.fit_colors[j])
+                if i == 0:
+                    line.set_label(fit + r': $\rho$ = %.3f' % self.params[fit][2*self.n])
+        axes.set_yscale('log')
+        axes.legend(loc = 'best')
+        axes.grid(True)
+        axes.set_xticks(self.cumul.index[0::tick_interval])
+        axes.set_xticklabels(self.cumul.index[0::tick_interval])
+        self.axes = axes
+        return data_lines
+
 class Fitter(object):
     date_format = '%Y-%m-%d'
     
