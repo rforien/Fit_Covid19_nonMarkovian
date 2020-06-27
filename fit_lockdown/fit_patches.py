@@ -197,8 +197,8 @@ class FitPatches(object):
                   np.sum(delay_hosp[:,1]*np.exp(-self.r[i]*delay_hosp[:,0])))
             self.p_hosp_lock[i] = p_death*((self.fitters[i].fit_value_at('Hospital admissions', 'Lockdown', '2020-04-21', daily = True)/
                             self.fitters[i].fit_value_at('Hospital deaths', 'Lockdown', '2020-04-21', daily = True))*(
-                    np.sum(delay_death[:,1]*np.exp(-self.rE[i]*delay_death[:,0]))/
-                    np.sum(delay_hosp[:,1]*np.exp(-self.rE[i]*delay_hosp[:,0]))))
+                    np.sum(delay_death[:,1]*np.exp(-self.rE[0,i]*delay_death[:,0]))/
+                    np.sum(delay_hosp[:,1]*np.exp(-self.rE[0,i]*delay_hosp[:,0]))))
 #            self.p_hosp_lock[i] = p_death*((self.hosp_fitters[i].data['daily']['2020-04-15']/
 #                            self.death_fitters[i].data['daily']['2020-04-15'])*(
 #                    np.sum(delay_death[:,1]*np.exp(-self.rE[i]*delay_death[:,0]))/
@@ -211,27 +211,40 @@ class FitPatches(object):
         self.sir = []
         time_after_lockdown = (date.datetime.strptime(end_of_run, self.date_format)-
                                date.datetime.strptime(self.lockdown_end_date, self.date_format)).days
+        self.intervals = np.zeros(np.size(self.names_fit))
+        for (j, d1) in enumerate(self.dates_of_change):
+            d2 = np.concatenate((self.dates_of_change, [end_of_run]))[j+1]
+            d1 = date.datetime.strptime(d1, self.date_format)
+            d2 = date.datetime.strptime(d2, self.date_format)
+            self.intervals[j] = np.maximum((d2-d1).days, 0)
         if Markov:
             print('Markov model')
             infectious_time = np.sum(EI_dist[:,1]*EI_dist[:,2])
             incubation_time = np.sum(EI_dist[:,0]*EI_dist[:,2])
             for i in np.arange(self.n):
-                self.sir.append(SEIR_lockdown_mixed_delays(self.sizes[i], self.r[i], self.rE[i], 
+                self.sir.append(SEIR_lockdown_mixed_delays(self.sizes[i], self.r[i], self.rE[0,i], 
                                                                     p_death, incubation_time, 
                                                                     infectious_time, delay_death))
         else:
             for i in np.arange(self.n):
-                self.sir.append(SEIR_nonMarkov(self.sizes[i], self.r[i], self.rE[i], p_death, 
+                self.sir.append(SEIR_nonMarkov(self.sizes[i], self.r[i], self.rE[0,i], p_death, 
                                                                     EI_dist, delay_death))
         for (i, sir) in enumerate(self.sir):
             if verbose:
                 print('Running SEIR model in ' + self.names[i])
             sir.calibrate(self.deaths_at_lockdown[i], self.lockdown_date)
-            if i==1:
-                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, time_after_lockdown, 
-                                          self.r_post[i], verbose = verbose)
-            else:
-                sir.run_full(self.lockdown_length, time_after_lockdown, self.r_post[i], verbose = verbose)
+            sir.run_up_to_lockdown(verbose = verbose, two_step_measures = (i==1 and two_step_measures), 
+                                   growth_rate_before_measures = self.r_GE, date_of_measures = self.date_first_measures_GE)
+            for (j, name) in enumerate(self.names_fit):
+                if verbose:
+                    print(name)
+                sir.change_contact_rate(self.rE[j,i], verbose = verbose)
+                sir.run(self.intervals[j], record = True)
+#            if i==1:
+#                sir.run_two_step_measures(self.date_first_measures_GE, self.r_GE, self.lockdown_length, time_after_lockdown, 
+#                                          self.r_post[i], verbose = verbose)
+#            else:
+#                sir.run_full(self.lockdown_length, time_after_lockdown, self.r_post[i], verbose = verbose)
             sir.compute_deaths()
             sir.compute_hosp(self.p_hosp[i], delay_hosp)
             time.sleep(.001)
@@ -502,7 +515,7 @@ class FitPatches(object):
     
     def plot_fit_init(self, deaths_tot, p_reported, p_death):
         self.tot_fitter = Fitter(deaths_tot, self.lockdown_date, 1)
-        self.tot_fitter.fit_init('2020-03-01', self.end_fit_init)
+#        self.tot_fitter.fit_init('2020-03-01', self.end_fit_init)
         self.observed_times_tot = self.index_to_time(self.tot_fitter.data.index)
 #        self.interval_fit = self.index_to_time(self.tot_fitter.index_init)
         
@@ -536,8 +549,7 @@ class FitPatches(object):
                          color = self.colors[1+i])
         
         # plot sir without two step measures
-        self.r_GE = self.r[1]
-        self.compute_sir(p_reported, p_death, '2020-05-30')
+        self.compute_sir(p_reported, p_death, '2020-05-30', two_step_measures = False)
         self.compute_deaths_tot()
         self.init_axs[0].plot(self.times_deaths_tot, self.deaths_tot, linewidth = 1.5, color = self.colors[0], 
                      label = 'France')
@@ -648,10 +660,14 @@ class FitPatches(object):
             self.axs[i,0].set_ylabel(self.names[i], fontsize = 12)
             if not logscale:
                 self.axs[i,0].set_ylim((-.01, .11))
+            else:
+                self.axs[i,0].set_ylim((1e-2, 2e-1))
             for j in np.arange(3):
                 self.axs[i,j].grid(True)
                 if logscale:
                     self.axs[i,j].set_yscale('log')
+                    if j > 0:
+                        self.axs[i,j].set_ylim((1, 3*10**(4-j)))
             
         # plot data
         for (i, fitter) in enumerate(self.fitters):

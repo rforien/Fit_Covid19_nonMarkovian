@@ -142,8 +142,12 @@ class SIR_lockdown(SIR):
         assert R0 > 0
         return R0*self.g**-1
     
-    def change_contact_rate(self, growth_rate, verbose = False):
-        self.l = self.contact_rate(growth_rate)
+    def change_contact_rate(self, growth_rate, adjust_S = True, verbose = False):
+        if adjust_S:
+            z = self.Z[0]
+        else:
+            z = 1
+        self.l = self.contact_rate(growth_rate)/z
         if verbose:
             print('R_0 = %.3f' % self.R0())
     
@@ -174,6 +178,28 @@ class SIR_lockdown(SIR):
         self.run(time_after_lockdown, record = True)
 #        print('Final state: ', self.Z)
         self.lockdown_length = lockdown_length
+    
+    def run_up_to_lockdown(self, verbose = True, two_step_measures = False, 
+                           growth_rate_before_measures = 0, date_of_measures = ''):
+        assert hasattr(self, 'lockdown_time')
+        if not two_step_measures:
+            if verbose:
+                print('R0 prior to lockdown: %.2f' % self.R0())
+            self.run(self.lockdown_time, record = True)
+        else:
+            assert growth_rate_before_measures > 0
+            self.date_measures = date.datetime.strptime(date_of_measures, self.date_format)
+            tau = (self.lockdown_date-self.date_measures).days
+            x = (self.r/growth_rate_before_measures)*(self.lockdown_time-tau)
+            self.lockdown_time = x + tau
+            self.l = self.contact_rate(growth_rate_before_measures)
+            if verbose:
+                print("R0 before first measures: %.2f" % self.R0())
+            self.run(x, record = True)
+            self.l = self.contact_rate(self.r)
+            if verbose:
+                print("R0 after first measures: %.2f" % self.R0())
+            self.run(tau, record = True)
     
     def run_two_step_measures(self, date_of_measures, growth_rate_before_measures, 
                               lockdown_length, time_after_lockdown, r_after_lockdown, verbose = True):
