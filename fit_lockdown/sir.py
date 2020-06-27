@@ -142,6 +142,11 @@ class SIR_lockdown(SIR):
         assert R0 > 0
         return R0*self.g**-1
     
+    def change_contact_rate(self, growth_rate, verbose = False):
+        self.l = self.contact_rate(growth_rate)
+        if verbose:
+            print('R_0 = %.3f' % self.R0())
+    
     def calibrate(self, deaths_lockdown, lockdown_date, I0 = 1):
         assert I0 > 0 and deaths_lockdown > 0
         self.lockdown_date = date.datetime.strptime(lockdown_date, self.date_format)

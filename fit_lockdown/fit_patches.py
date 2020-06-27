@@ -28,6 +28,10 @@ class FitPatches(object):
     lockdown_date = '2020-03-16'
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
+    dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02']
+    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-06-26']
+    names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
+    delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -69,7 +73,7 @@ class FitPatches(object):
         self.fitters = []
         self.death_fitters = []
         self.r = np.zeros(self.n)
-        self.rE = np.zeros(self.n)
+        self.rE = np.zeros((np.size(self.dates_of_change), self.n))
         self.r_post = np.zeros(self.n)
         self.deaths_at_lockdown = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
@@ -78,23 +82,27 @@ class FitPatches(object):
             self.death_fitters[i].fit_init(self.start_fit_init, self.end_fit_init)
 #            self.fitters[i].fit(self.start_fit_init, self.end_fit_init, np.array([0]),
 #                        'Initial growth', columns = ['Hospital deaths'])
-            self.fitters[i].fit(self.lockdown_date, self.lockdown_end_date,
-                        self.delays_lockdown, 'Lockdown')
-            self.fitters[i].fit(self.lockdown_end_date, self.end_post_lockdown,
-                        self.delays_post, 'After lockdown')
-            self.fitters[i].fit('2020-06-02', '2020-06-24', self.delays_post,
-                        'After 2 June')
-#            self.r[i] = self.fitters[i].params['Initial growth'][2]
             self.r[i] = self.death_fitters[i].r
-            self.rE[i] = self.fitters[i].params['Lockdown'][6]
-            self.r_post[i] = self.fitters[i].params['After lockdown'][6]
             self.deaths_at_lockdown[i] = self.death_fitters[i].deaths_at_lockdown()
+            for (j, name) in enumerate(self.names_fit):
+                self.fitters[i].fit(self.dates_of_change[j], self.dates_end_fit[j],
+                            self.delays[j], name)
+                self.rE[j,i] = self.fitters[i].params[name][6]
+#            self.fitters[i].fit(self.lockdown_date, self.lockdown_end_date,
+#                        self.delays_lockdown, 'Lockdown')
+#            self.fitters[i].fit(self.lockdown_end_date, self.end_post_lockdown,
+#                        self.delays_post, 'After lockdown')
+#            self.fitters[i].fit('2020-06-02', '2020-06-26', self.delays_post,
+#                        'After 2 June')
+#            self.r[i] = self.fitters[i].params['Initial growth'][2]
+#            self.rE[i] = self.fitters[i].params['Lockdown'][6]
+#            self.r_post[i] = self.fitters[i].params['After lockdown'][6]
 #            self.deaths_at_lockdown[i] = self.fitters[i].fit_value_at('Hospital deaths',
 #                                   'Initial growth', self.lockdown_date)
         print('Growth rates prior to lockdown: ', self.r)
-        print('Growth rates during lockdown: ', self.rE)
-        print('Growth rates after lockdown: ', self.r_post)
-        print('Deaths at lockdown: ', self.deaths_at_lockdown)
+        for (j, name) in enumerate(self.names_fit):
+            print('Growth rates ' + name, self.rE[j])
+#        print('Deaths at lockdown: ', self.deaths_at_lockdown)
     
     def plot_fit(self):
         tick_interval = 21
@@ -175,7 +183,7 @@ class FitPatches(object):
             
     
     def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, 
-                    params_delays = np.array([14.8, .18, 6, .96])):
+                    params_delays = np.array([14.8, .18, 6, .96]), two_step_measures = True):
         # delay_hosp = delay_hosp_covid()
         # delay_death = delay_death_covid()
         delay_hosp, delay_death = delay_hosp_death_covid(params_delays[0], params_delays[1]*params_delays[0], 

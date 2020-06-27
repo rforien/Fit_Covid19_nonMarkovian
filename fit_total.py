@@ -11,8 +11,8 @@ import numpy as np
 
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-24-19h00.csv', delimiter = ';')
-data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-06-24-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-06-26-19h00.csv', delimiter = ';')
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-06-26-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -130,7 +130,7 @@ print('Growth rates in France: ', deaths_fit_France.r, fit_France.params['Lockdo
       fit_France.params['After lockdown'][6], fit_France.params['After 2 June'][6])
 
 #fit_total.plot_fit_init(France, .6, .005)
-#fit_total.plot_fit_lockdown()
+fit_total.plot_fit_lockdown()
 #fit_total.axs[0].plot(rea_IdF.diff(), color = 'g', linestyle = 'dashed', label = 'ICU admissons')
 #fit_total.axs[1].plot(rea_GEHdF.diff(), color = 'g', linestyle = 'dashed', label = 'ICU admissons')
 #fit_total.axs[2].plot(rea_out.diff(), color = 'g', linestyle = 'dashed', label = 'ICU admissons')
@@ -140,7 +140,7 @@ print('Growth rates in France: ', deaths_fit_France.r, fit_France.params['Lockdo
 #fit_total.fit_mcmc(5e3, np.array([.8, 14, .2, 7, .5]))
 #fit_total.fit_data(np.array([.5, .5, .5]), bounds = ((0, 1), (0, 1), (0, 1)))
 #fit_total._fit_fixed([0.7, 0.5, .5, .5])
-fit_total.compute_sir(.6, f, end_of_run = '2020-06-17', Markov = False)
+#fit_total.compute_sir(.6, f, end_of_run = '2020-06-17', Markov = False)
 ##fit_total.run_patches(300, MigMat)
 ###print(fit_total._fit_sir(p))
 ##fit_total.plot_deaths_tot(France)
