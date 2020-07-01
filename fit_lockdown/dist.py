@@ -54,6 +54,11 @@ def gamma_dist(k, theta, n = 100):
     dist[:,1] = np.diff(cumdist)
     return dist
 
+def Laplace(dist, t, i = 0):
+    assert is_dist(dist, dim = np.size(dist, axis = 1)-1)
+    assert type(i) == int and i < np.size(dist, axis = 1)-1 and i >= 0
+    return np.sum(dist[:,-1]*np.exp(t*dist[:,i]))
+
 def convol(dist1, dist2):
     assert is_dist(dist1) and is_dist(dist2)
     pdist = product_dist(dist1, dist2)
