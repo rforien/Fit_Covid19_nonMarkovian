@@ -165,16 +165,20 @@ class SIR_lockdown(SIR):
         denom = Laplace(delay_dist, -self.r)
         self.lockdown_time = np.log(deaths_lockdown/(infection_fatality_ratio*I0*denom))/self.r
         self.Z = np.concatenate(([1-I0/self.N], I0/self.N*self.lead_eigen_vect()))
+        self.change_contact_rate(self.r)
     
-    def lead_eigen_vect(self):
-        return np.array([self.r/self.l, 1-self.r/self.l])
+    def lead_eigen_vect(self, rho = None):
+        if rho == None:
+            rho = self.r
+        l = self.contact_rate(rho)
+        return np.array([rho/l, 1-rho/l])
     
     def shift(self, delay):
         return np.argmax(self.times > delay)-1
     
     def lockdown_constants(self, growth_rate_lockdown, delta):
         self.forget()
-        self.calibrate(10, 1e8, .1, 0)
+        self.calibrate(10, .1, np.array([[0, 1]]))
         self.run_up_to_lockdown(verbose = False)
         Z_lockdown = self.Z
         self.change_contact_rate(growth_rate_lockdown, adjust_S = False)
@@ -221,6 +225,8 @@ class SIR_lockdown(SIR):
             self.daily = pd.DataFrame(index = self.times)
         self.cumul[name] = np.zeros(np.size(self.times))
         for (delay, p) in delay_dist:
+            if delay >= np.max(self.times):
+                continue
             i = self.shift(delay)
             time_range = np.arange(i,np.size(self.times))
             self.cumul[name].values[time_range] += ratio*self.N*p*(1-self.traj[time_range-i,0])
@@ -265,9 +271,11 @@ class SEIR_lockdown(SIR_lockdown, SEIR):
     def contact_rate(self, r):
         return self.g**-1 + (r*self.incubation_time)*(self.incubation_time**-1 + self.g**-1 + r)
     
-    def lead_eigen_vect(self):
-        x = self.nu/(self.nu+self.r)
-        y = self.mu/(self.mu+self.r)
+    def lead_eigen_vect(self, rho = None):
+        if rho == None:
+            rho = self.r
+        x = self.nu/(self.nu+rho)
+        y = self.mu/(self.mu+rho)
         e = 1-x
         i = x*(1-y)
         r = x*y
@@ -370,10 +378,13 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown):
     def contact_rate(self, r):
         return r/(self.LaplaceE(r)-self.LaplaceEI(r))
     
-    def lead_eigen_vect(self):
-        i = self.r/self.l
-        e = 1-self.LaplaceE(self.r)
-        r = self.LaplaceEI(self.r)
+    def lead_eigen_vect(self, rho = None):
+        if rho == None:
+            rho = self.r
+        l = self.contact_rate(rho)
+        i = rho/l
+        e = 1-self.LaplaceE(rho)
+        r = self.LaplaceEI(rho)
         return np.array([i, r, e])
     
     def _init_flux(self, n, dt):

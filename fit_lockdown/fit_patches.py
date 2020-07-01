@@ -29,7 +29,7 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02']
-    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-06-30']
+    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-07-01']
     names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
     delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15]])
     # time to wait after lockdown to start fitting the slope
@@ -56,6 +56,7 @@ class FitPatches(object):
         self.data = data
         self.sizes = sizes
         self.names = names
+        self.events = self.data[0].columns
         
         self.datetime_lockdown = date.datetime.strptime(self.lockdown_date, self.date_format)
         self.datetime_end_lockdown = date.datetime.strptime(self.lockdown_end_date, self.date_format)
@@ -153,41 +154,41 @@ class FitPatches(object):
             data_lines = self.fitters[i].plot(self.axs[i])
         fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions'], loc = (.53, .35), fontsize = 13)
         fig.set_tight_layout(True)
-            
+        
+    def fit_delays(self):
+        delta = 35
+        date_delta = (self.datetime_lockdown + date.timedelta(days = delta)).strftime(self.date_format)
+        assert hasattr(self, 'fitters') and hasattr(self, 'sir')
+        self.param_delays = pd.DataFrame(index = pd.MultiIndex.from_product([self.events, ['k', 'theta']]))
+        for (i, fitter) in enumerate(self.fitters):
+            sir = self.sir[i]
+            SIR_constants = sir.lockdown_constants(self.rE[0,i], delta)
+            EIR = sir.lead_eigen_vect(self.r[i])
+            lambdaL = sir.contact_rate(self.rE[0,i])
+            K = np.sum(EIR*SIR_constants) - lambdaL*SIR_constants[0]*EIR[0]/self.rE[0,i]
+            day = date.datetime.strptime(self.data[i].index[1], self.date_format)
+            diff = (day-self.datetime_lockdown).days
+            self.param_delays[self.names[i]] = np.zeros(2*np.size(self.events))
+            for (j, name) in enumerate(self.events):
+                cumul_first_day = self.data[i][name].values[1]
+                cumul_at_lockdown = cumul_first_day*np.exp(-self.r[i]*diff)
+                cumul_at_delta = fitter.fit_value_at(name, 'Lockdown', date_delta)
+                daily_at_delta = fitter.fit_value_at(name, 'Lockdown', date_delta, daily = True)
+                A = (cumul_at_delta - daily_at_delta/self.rE[0,i])/(K*cumul_at_lockdown)
+                B = A*cumul_at_lockdown*lambdaL*SIR_constants[0]*EIR[0]/daily_at_delta
+#                print(A, B)
+                k, theta = optim.fsolve(self._delay_err, [7, 2], args = (A, B, self.r[i], self.rE[0,i]))
+#                print((1+self.r[i]*theta)**k, (1+self.rE[0,i]*theta)**k, k, theta)
+                self.param_delays[self.names[i]][name] = [k, theta]
+        
+    def _delay_err(self, X, A, B, r, rE):
+        k, theta = np.abs(X)
+        return [np.abs((1+r*theta)**k/A-1), np.abs((1+rE*theta)**k/B-1)]
     
     def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, 
                     params_delays = np.array([14.8, .18, 6, .96]), two_step_measures = True):
-        # delay_hosp = delay_hosp_covid()
-        # delay_death = delay_death_covid()
-        delay_hosp, delay_death = delay_hosp_death_covid(params_delays[0], params_delays[1]*params_delays[0], 
-                                                         params_delays[2], params_delays[3]*params_delays[2])
-        self.p_hosp = np.zeros(self.n)
-        self.p_hosp_lock = np.zeros(self.n)
-        for (i, n) in enumerate(self.names):
-            self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions'].values[1]/
-                       self.data[i]['Hospital deaths'].values[1])*(
-                    np.sum(delay_death[:,1]*np.exp(-self.r[i]*delay_death[:,0]))/
-                  np.sum(delay_hosp[:,1]*np.exp(-self.r[i]*delay_hosp[:,0])))
-            self.p_hosp_lock[i] = p_death*((self.fitters[i].fit_value_at('Hospital admissions', 'Lockdown', '2020-04-21', daily = True)/
-                            self.fitters[i].fit_value_at('Hospital deaths', 'Lockdown', '2020-04-21', daily = True))*(
-                    np.sum(delay_death[:,1]*np.exp(-self.rE[0,i]*delay_death[:,0]))/
-                    np.sum(delay_hosp[:,1]*np.exp(-self.rE[0,i]*delay_hosp[:,0]))))
-#            self.p_hosp_lock[i] = p_death*((self.hosp_fitters[i].data['daily']['2020-04-15']/
-#                            self.death_fitters[i].data['daily']['2020-04-15'])*(
-#                    np.sum(delay_death[:,1]*np.exp(-self.rE[i]*delay_death[:,0]))/
-#                    np.sum(delay_hosp[:,1]*np.exp(-self.rE[i]*delay_hosp[:,0]))))
-        if verbose:
-            print('Probabilities of hospitalisation: ', self.p_hosp)
-            print('relative probabilities: ', p_death/self.p_hosp)
-            print('relative probabilities during lockdown: ', p_death/self.p_hosp_lock)
         EI_dist = EI_dist_covid(p_reported)
         self.sir = []
-        self.intervals = np.zeros(np.size(self.names_fit))
-        for (j, d1) in enumerate(self.dates_of_change):
-            d2 = np.concatenate((self.dates_of_change, [end_of_run]))[j+1]
-            d1 = date.datetime.strptime(d1, self.date_format)
-            d2 = date.datetime.strptime(d2, self.date_format)
-            self.intervals[j] = np.maximum((d2-d1).days, 0)
         if Markov:
             print('Markov model')
             infectious_time = np.sum(EI_dist[:,1]*EI_dist[:,2])
@@ -203,18 +204,42 @@ class FitPatches(object):
                                                two_step_measures = (i==1 and two_step_measures),
                                                growth_rate_before_measures = self.r_GE, 
                                                date_of_measures = self.date_first_measures_GE))
+        self.fit_delays()
+        self.delays_hosp = []
+        self.delays_icu = []
+        self.delays_death = []
+        for i in np.arange(self.n):
+            for (j, delays) in enumerate([self.delays_hosp, self.delays_death, self.delays_icu]):
+                p = self.param_delays[self.names[i]][self.events[j]]
+                delays.append(gamma_dist(p['k'], p['theta']))
+        self.p_hosp = np.zeros(self.n)
+        for i in np.arange(self.n):
+            self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions'].values[1]/
+                       self.data[i]['Hospital deaths'].values[1])*(
+                    np.sum(self.delays_death[i][:,1]*np.exp(-self.r[i]*self.delays_death[i][:,0]))/
+                  np.sum(self.delays_hosp[i][:,1]*np.exp(-self.r[i]*self.delays_hosp[i][:,0])))
+        if verbose:
+            print('Probabilities of hospitalisation: ', self.p_hosp)
+            print('relative probabilities: ', p_death/self.p_hosp)
+        
+        self.intervals = np.zeros(np.size(self.names_fit))
+        for (j, d1) in enumerate(self.dates_of_change):
+            d2 = np.concatenate((self.dates_of_change, [end_of_run]))[j+1]
+            d1 = date.datetime.strptime(d1, self.date_format)
+            d2 = date.datetime.strptime(d2, self.date_format)
+            self.intervals[j] = np.maximum((d2-d1).days, 0)
         for (i, sir) in enumerate(self.sir):
             if verbose:
                 print('Running SEIR model in ' + self.names[i])
-            sir.calibrate(self.deaths_at_lockdown[i], p_death, delay_death)
+            sir.calibrate(self.deaths_at_lockdown[i], p_death, self.delays_death[i])
             sir.run_up_to_lockdown(verbose = verbose)
             for (j, name) in enumerate(self.names_fit):
                 if verbose:
                     print(name)
                 sir.change_contact_rate(self.rE[j,i], verbose = verbose)
                 sir.run(self.intervals[j], record = True)
-            sir.compute_delayed_event(p_death, delay_death, 'Hospital deaths')
-            sir.compute_delayed_event(self.p_hosp[i], delay_hosp, 'Hospital admissions')
+            sir.compute_delayed_event(p_death, self.delays_death[i], 'Hospital deaths')
+            sir.compute_delayed_event(self.p_hosp[i], self.delays_hosp[i], 'Hospital admissions')
             time.sleep(.001)
         
     
@@ -509,6 +534,8 @@ class FitPatches(object):
         self.faxs[0, 2].set_title('Hospital deaths')
         for i in np.arange(self.n):
             self.faxs[self.n-1, i].set_xlabel('Time (days since lockdown)')
+        ymax = np.max([1-sir.traj[-1,0] for sir in self.sir])+.05
+        xmax = np.max([sir.times[-1]-sir.lockdown_time for sir in self.sir])
         for (i, sir) in enumerate(self.sir):
             self.faxs[i,0].set_ylabel(self.names[i])
             self.faxs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0], label = '1-S')
@@ -516,9 +543,9 @@ class FitPatches(object):
             self.faxs[i,0].plot(sir.times-sir.lockdown_time, sir.traj[:,1], label = 'I')
             self.faxs[i,0].plot(sir.times-sir.lockdown_time, sir.traj[:,2], label = 'R')
             self.faxs[i,0].grid(True)
-            self.faxs[i,0].vlines(0, 0, .1, linestyle = 'dashed')
+            self.faxs[i,0].vlines(0, 0, ymax, linestyle = 'dashed')
             self.faxs[i,0].legend(loc='best')
-            self.faxs[i,0].set_ylim((0, .1))
+            self.faxs[i,0].set_ylim((-.01, ymax))
             
             for (j, name) in enumerate(['Hospital admissions', 'Hospital deaths']):
                 cumul = sir.plot_event(name, axes = self.faxs[i,1+j], labels = False)
@@ -531,10 +558,10 @@ class FitPatches(object):
                          linestyle = 'dashed', color = daily.get_color())
                 self.faxs[i,1+j].set_yscale('log')
                 self.faxs[i,1+j].legend(loc='best')
-                self.faxs[i,1+j].set_xlim((-7, np.max(self.observed_times)))
+                self.faxs[i,1+j].set_xlim((-7, np.maximum(np.max(self.observed_times), xmax)))
             
-            self.faxs[i,1].set_ylim((1e0, 6e4))
-            self.faxs[i,2].set_ylim((1e-1, 1.6e4))
+            self.faxs[i,1].set_ylim((1e0, 7e4))
+            self.faxs[i,2].set_ylim((1e-1, 2e4))
         self.fig.set_tight_layout(True)
     
     def plot_markov_vs_nonmarkov(self, p_reported, p_death, logscale = False):
