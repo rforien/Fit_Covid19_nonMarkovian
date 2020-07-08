@@ -11,8 +11,8 @@ import numpy as np
 
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-03-19h00_corrected.csv', delimiter = ';')
-data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-03-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-07-19h00_corrected.csv', delimiter = ';')
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-07-19h00.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -129,19 +129,19 @@ deaths_fit_France.fit_init('2020-03-01', fit_total.end_fit_init)
 print('Growth rates in France: ', deaths_fit_France.r, fit_France.params['Lockdown'][6], 
       fit_France.params['After lockdown'][6], fit_France.params['After 2 June'][6])
 
-#fit_total.rE[-1,:] = [.02, .02, .02]
-#fit_total.compute_sir(.6, f, '2020-08-31', Markov = False)
+# fit_total.rE[-1,:] = [.02, .02, .02]
+fit_total.compute_sir(.6, f, '2020-08-31', Markov = False)
 #fit_total.plot_fit_init(France, .6, .005)
-fit_total.plot_fit_lockdown()
+# fit_total.plot_fit_lockdown()
 #fit_total.plot_markov_vs_nonmarkov(.6, .005, logscale = True)
-#fit_total.plot_immunity([.002, .005, .01], .6)
+# fit_total.plot_immunity([.002, .005, .01], .6)
 #print(fit_total._fit_reported(np.array([.6, 14.8, .18, 4.7, .9])))
 #fit_total.fit_mcmc(5e3, np.array([.8, 14, .2, 7, .5]))
 #fit_total.compute_sir(.6, f, end_of_run = '2020-04-17', Markov = False)
 #fit_total.sir[0].lockdown_constants(-.05, 20)
-#fit_total.plot_deaths_hosp(logscale = False)
+fit_total.plot_deaths_hosp(logscale = False)
 #[sir.plot() for sir in fit_total.sir]
-#fit_total.plot_SIR_deaths_hosp()
+# fit_total.plot_SIR_deaths_hosp(logscale = False)
 
 # shade areas depending on period
 # try fsolve with different starting point when fit doesn't work

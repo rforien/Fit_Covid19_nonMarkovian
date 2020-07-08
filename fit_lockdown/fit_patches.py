@@ -29,7 +29,7 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02']
-    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-07-03']
+    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-07-07']
     names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
     delays = np.array([[18, 28, 28], [10, 15, 15], [14, 21, 21]])
     # time to wait after lockdown to start fitting the slope
@@ -43,7 +43,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 200
+    dpi = 100
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -529,7 +529,7 @@ class FitPatches(object):
         self.axs[2].legend(loc = 'upper right', title = 'Infection fatality ratio')
         self.fig.set_tight_layout(True)
     
-    def plot_SIR_deaths_hosp(self):
+    def plot_SIR_deaths_hosp(self, logscale = True):
         assert hasattr(self, 'sir')
         self.fig, self.faxs = plt.subplots(self.n, 3, dpi = self.dpi, figsize = (12, 12), sharex = False)
         self.faxs[0, 0].set_title('trajectory of the SEIR model')
@@ -559,12 +559,14 @@ class FitPatches(object):
                          linestyle = 'dashed', color = cumul.get_color())
                 self.faxs[i,1+j].plot(self.observed_times[1:], np.diff(self.data[i][name].values),
                          linestyle = 'dashed', color = daily.get_color())
-                self.faxs[i,1+j].set_yscale('log')
+                if logscale:
+                    self.faxs[i,1+j].set_yscale('log')
                 self.faxs[i,1+j].legend(loc='best')
                 self.faxs[i,1+j].set_xlim((-7, np.maximum(np.max(self.observed_times), xmax)))
             
-            self.faxs[i,1].set_ylim((1e0, 5e5))
-            self.faxs[i,2].set_ylim((1e-1, 1e5))
+            if logscale:
+                self.faxs[i,1].set_ylim((1e0, 5e5))
+                self.faxs[i,2].set_ylim((1e-1, 1e5))
         self.fig.set_tight_layout(True)
     
     def plot_markov_vs_nonmarkov(self, p_reported, p_death, logscale = False):
