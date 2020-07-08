@@ -407,4 +407,5 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown):
         self.Z += np.matmul(self.A, self.flux[self.i,:])
         self.i += 1
 
-
+class SEIR_varying_inf(SEIR_nonMarkov):
+    pass

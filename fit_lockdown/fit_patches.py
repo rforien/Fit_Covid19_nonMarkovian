@@ -29,9 +29,9 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02']
-    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-07-01']
+    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-07-03']
     names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
-    delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15]])
+    delays = np.array([[18, 28, 28], [10, 15, 15], [14, 21, 21]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -219,6 +219,9 @@ class FitPatches(object):
                     np.sum(self.delays_death[i][:,1]*np.exp(-self.r[i]*self.delays_death[i][:,0]))/
                   np.sum(self.delays_hosp[i][:,1]*np.exp(-self.r[i]*self.delays_hosp[i][:,0])))
         if verbose:
+            for (i, name) in enumerate(self.names):
+                for (j, event) in enumerate(self.events):
+                    print('Mean infection to ' + event + ' delay in ' + name + ': ', np.prod(self.param_delays[name][event].values))
             print('Probabilities of hospitalisation: ', self.p_hosp)
             print('relative probabilities: ', p_death/self.p_hosp)
         
@@ -560,8 +563,8 @@ class FitPatches(object):
                 self.faxs[i,1+j].legend(loc='best')
                 self.faxs[i,1+j].set_xlim((-7, np.maximum(np.max(self.observed_times), xmax)))
             
-            self.faxs[i,1].set_ylim((1e0, 7e4))
-            self.faxs[i,2].set_ylim((1e-1, 2e4))
+            self.faxs[i,1].set_ylim((1e0, 5e5))
+            self.faxs[i,2].set_ylim((1e-1, 1e5))
         self.fig.set_tight_layout(True)
     
     def plot_markov_vs_nonmarkov(self, p_reported, p_death, logscale = False):
