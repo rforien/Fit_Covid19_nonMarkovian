@@ -43,7 +43,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 100
+    dpi = 200
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -92,51 +92,6 @@ class FitPatches(object):
             print('Growth rates ' + name, self.rE[j])
 #        print('Deaths at lockdown: ', self.deaths_at_lockdown)
     
-#    def plot_fit(self):
-#        tick_interval = 21
-#        self.fig, self.axs = plt.subplots(self.n, 2, dpi = self.dpi, figsize = (10, 16), sharex = True)
-#        self.axs[0,0].set_title('Cumulative data')
-#        self.axs[0,1].set_title('Daily data')
-#        for i in np.arange(self.n):
-#            self.axs[i,0].set_ylabel(self.names[i], fontsize = 12)
-#            deaths = self.axs[i,0].plot(self.death_fitters[i].data['cumul'], linestyle = 'dashed')
-#            hosp = self.axs[i,0].plot(self.hosp_fitters[i].data['cumul'], linestyle = 'dashed')
-#            fit_d = self.axs[i,0].plot(self.death_fitters[i].index_init, self.death_fitters[i].best_fit_init_cumul(),
-#                    color = deaths[0].get_color())
-#            fit_d2 = self.axs[i,0].plot(self.death_fitters[i].index_post_lockdown, self.death_fitters[i].best_fit_post_cumul(),
-#                             color = deaths[0].get_color())
-#            fit_h = self.axs[i,0].plot(self.hosp_fitters[i].index_lockdown, self.hosp_fitters[i].best_fit_lock_cumul(),
-#                    color = hosp[0].get_color())
-#            fit_h2 = self.axs[i,0].plot(self.hosp_fitters[i].index_post_lockdown,
-#                             self.hosp_fitters[i].best_fit_post_cumul(), color = hosp[0].get_color())
-#            self.axs[i,0].set_yscale('log')
-#            self.axs[i,0].legend((fit_d[0], fit_h[0], fit_h2[0], fit_d2[0]), 
-#                    [r'$\rho$ = %.2f' % self.death_fitters[i].r, r'$\rho_E$ = %.2f' % self.hosp_fitters[i].rE,
-#                     r'$\rho_p$ = %.2f' % self.hosp_fitters[i].r_post, r'$\rho_p$ = %.2f' % self.death_fitters[i].r_post], 
-#                    loc='best')
-#            
-#            self.axs[i,1].plot(self.death_fitters[i].data['daily'], linestyle = 'dashed', color = deaths[0].get_color())
-#            self.axs[i,1].plot(self.hosp_fitters[i].data['daily'], linestyle = 'dashed', color = hosp[0].get_color())
-#            fit_d = self.axs[i,1].plot(self.death_fitters[i].index_init, self.death_fitters[i].best_fit_init_daily(),
-#                    color = deaths[0].get_color())
-#            fit_d2 = self.axs[i,1].plot(self.death_fitters[i].index_post_lockdown,
-#                             self.death_fitters[i].best_fit_post_daily(), color = deaths[0].get_color())
-#            fit_h = self.axs[i,1].plot(self.hosp_fitters[i].index_lockdown, self.hosp_fitters[i].best_fit_lock_daily(),
-#                    color = hosp[0].get_color())
-#            fit_h2 = self.axs[i,1].plot(self.hosp_fitters[i].index_post_lockdown,
-#                             self.hosp_fitters[i].best_fit_post_daily(), color = hosp[0].get_color())
-#            self.axs[i,1].set_yscale('log')
-#            self.axs[i,1].legend((fit_d[0], fit_h[0], fit_h2[0], fit_d2[0]), 
-#                    [r'$\rho$ = %.2f' % self.death_fitters[i].r, r'$\rho_E$ = %.2f' % self.hosp_fitters[i].rE,
-#                     r'$\rho_p$ = %.2f' % self.hosp_fitters[i].r_post, r'$\rho_p$ = %.2f' % self.death_fitters[i].r_post],
-#                    loc = 'best')
-#        self.fig.legend((deaths[0], hosp[0]), ['Hospital deaths', 'Hospital admissions'], loc = 'upper right')
-#        self.axs[self.n-1,0].set_xticks(self.deaths.index[0::tick_interval])
-#        self.axs[self.n-1,0].set_xticklabels(self.deaths.index[0::tick_interval])
-#        self.axs[self.n-1,1].set_xticks(self.deaths.index[0::tick_interval])
-#        self.axs[self.n-1,1].set_xticklabels(self.deaths.index[0::tick_interval])
-##        self.fig.set_tight_layout(True)
-    
     def plot_fit_lockdown(self):
         m = int(np.ceil(np.sqrt(self.n)))
         gs = gridspec.GridSpec(m, m)
@@ -168,25 +123,39 @@ class FitPatches(object):
             K = np.sum(EIR*SIR_constants) - lambdaL*SIR_constants[0]*EIR[0]/self.rE[0,i]
             day = date.datetime.strptime(self.data[i].index[1], self.date_format)
             diff = (day-self.datetime_lockdown).days
+#            print(diff)
             self.param_delays[self.names[i]] = np.zeros(2*np.size(self.events))
-            for (j, name) in enumerate(self.events):
-                cumul_first_day = self.data[i][name].values[1]
+            for (j, event) in enumerate(self.events):
+                cumul_first_day = self.data[i][event].values[1]
                 cumul_at_lockdown = cumul_first_day*np.exp(-self.r[i]*diff)
-                cumul_at_delta = fitter.fit_value_at(name, 'Lockdown', date_delta)
-                daily_at_delta = fitter.fit_value_at(name, 'Lockdown', date_delta, daily = True)
+                cumul_at_delta = fitter.fit_value_at(event, 'Lockdown', date_delta)
+                daily_at_delta = fitter.fit_value_at(event, 'Lockdown', date_delta, daily = True)
                 A = (cumul_at_delta - daily_at_delta/self.rE[0,i])/(K*cumul_at_lockdown)
                 B = A*cumul_at_lockdown*lambdaL*SIR_constants[0]*EIR[0]/daily_at_delta
 #                print(A, B)
-                k, theta = optim.fsolve(self._delay_err, [7, 2], args = (A, B, self.r[i], self.rE[0,i]))
+                propose = [7, 2]
+                k, theta = propose
+                t = 0
+                while ((k == propose[0] and theta == propose[1]) or k <= 0 or theta <= 0) and t < 10:
+                    propose = np.random.uniform(1, 10, 2)
+                    k, theta = optim.fsolve(self._delay_err, propose, args = (A, B, self.r[i], self.rE[0,i]))
+                    t += 1
 #                print((1+self.r[i]*theta)**k, (1+self.rE[0,i]*theta)**k, k, theta)
-                self.param_delays[self.names[i]][name] = [k, theta]
+                self.param_delays[self.names[i]][event] = [k, theta]
         
     def _delay_err(self, X, A, B, r, rE):
         k, theta = np.abs(X)
         return [np.abs((1+r*theta)**k/A-1), np.abs((1+rE*theta)**k/B-1)]
     
-    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, 
-                    params_delays = np.array([14.8, .18, 6, .96]), two_step_measures = True):
+    def compute_p_hosp(self, p_death):
+        assert hasattr(self, 'delays_death') and hasattr(self, 'delays_hosp')
+        self.p_hosp = np.zeros(self.n)
+        for i in np.arange(self.n):
+            self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions'].values[1]/
+                       self.data[i]['Hospital deaths'].values[1])*(
+                        Laplace(self.delays_death[i], -self.r[i])/Laplace(self.delays_hosp[i], -self.r[i]))
+    
+    def prepare_sir(self, p_reported, p_death, Markov = False, verbose = True, two_step_measures = True):
         EI_dist = EI_dist_covid(p_reported)
         self.sir = []
         if Markov:
@@ -212,18 +181,16 @@ class FitPatches(object):
             for (j, delays) in enumerate([self.delays_hosp, self.delays_death, self.delays_icu]):
                 p = self.param_delays[self.names[i]][self.events[j]]
                 delays.append(gamma_dist(p['k'], p['theta']))
-        self.p_hosp = np.zeros(self.n)
-        for i in np.arange(self.n):
-            self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions'].values[1]/
-                       self.data[i]['Hospital deaths'].values[1])*(
-                    np.sum(self.delays_death[i][:,1]*np.exp(-self.r[i]*self.delays_death[i][:,0]))/
-                  np.sum(self.delays_hosp[i][:,1]*np.exp(-self.r[i]*self.delays_hosp[i][:,0])))
+        self.compute_p_hosp(p_death)
         if verbose:
             for (i, name) in enumerate(self.names):
                 for (j, event) in enumerate(self.events):
                     print('Mean infection to ' + event + ' delay in ' + name + ': ', np.prod(self.param_delays[name][event].values))
             print('Probabilities of hospitalisation: ', self.p_hosp)
             print('relative probabilities: ', p_death/self.p_hosp)
+            
+    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, two_step_measures = True):
+        self.prepare_sir(p_reported, p_death, Markov, verbose, two_step_measures)
         
         self.intervals = np.zeros(np.size(self.names_fit))
         for (j, d1) in enumerate(self.dates_of_change):
@@ -389,10 +356,10 @@ class FitPatches(object):
             if logscale:
                 self.dhaxs[i,1].set_yscale('log')
                 self.dhaxs[i,0].set_yscale('log')
-                self.dhaxs[i,0].set_xlim((-7, np.max(self.observed_times_deaths)))
-                self.dhaxs[i,1].set_xlim((-7, np.max(self.observed_times_deaths)))
+                self.dhaxs[i,0].set_xlim((-7, np.max(self.observed_times)))
+                self.dhaxs[i,1].set_xlim((-7, np.max(self.observed_times)))
                 self.dhaxs[i,0].set_ylim((10, 1e5))
-                self.dhaxs[i,1].set_ylim((5, 1e4))
+                self.dhaxs[i,1].set_ylim((1, 1e4))
             self.dhaxs[i,0].set_ylabel(self.names[i])
             self.dhaxs[i,0].grid(True)
             self.dhaxs[i,1].grid(True)
