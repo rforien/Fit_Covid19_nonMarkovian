@@ -164,8 +164,21 @@ class SIR_lockdown(SIR):
         assert infection_fatality_ratio > 0 and infection_fatality_ratio <= 1
         denom = Laplace(delay_dist, -self.r)
         self.lockdown_time = np.log(deaths_lockdown/(infection_fatality_ratio*I0*denom))/self.r
+        self.change_contact_rate(self.r, adjust_S = False)
+        if self.two_step_measures:
+            tau = (self.lockdown_date-self.date_measures).days
+            num = np.exp(self.r*self.lockdown_time)*denom
+            denom1 = np.sum(np.exp(self.r*(tau-delay_dist[:,0]))*(
+                    delay_dist[:,0] <= tau)*delay_dist[:,1])
+            denom2 = np.sum(np.exp(self.r_before_measures*(tau-delay_dist[:,0]))*(
+                    delay_dist[:,0] > tau)*delay_dist[:,1])
+            S = num / (denom1 + denom2)
+            delta = self.lockdown_time - tau - np.log(S)/self.r_before_measures
+#            print(S, delta, tau)
+            self.lockdown_time -= delta
+            self.init_phase = self.lockdown_time - tau
+            self.change_contact_rate(self.r_before_measures, adjust_S = False)
         self.Z = np.concatenate(([1-I0/self.N], I0/self.N*self.lead_eigen_vect()))
-        self.change_contact_rate(self.r)
     
     def lead_eigen_vect(self, rho = None):
         if rho == None:
@@ -194,17 +207,13 @@ class SIR_lockdown(SIR):
                 print('R0 prior to lockdown: %.2f' % self.R0())
             self.run(self.lockdown_time, record = True)
         else:
-            tau = (self.lockdown_date-self.date_measures).days
-            x = (self.r/self.r_before_measures)*(self.lockdown_time-tau)
-            self.lockdown_time = x + tau
-            self.l = self.contact_rate(self.r_before_measures)
             if verbose:
                 print("R0 before first measures: %.2f" % self.R0())
-            self.run(x, record = True)
-            self.l = self.contact_rate(self.r)
+            self.run(self.init_phase, record = True)
+            self.change_contact_rate(self.r, adjust_S = False)
             if verbose:
                 print("R0 after first measures: %.2f" % self.R0())
-            self.run(tau, record = True)
+            self.run(self.lockdown_time-self.init_phase, record = True)
     
     def plot(self, axes = None, S = True):
         super().plot(axes, S)
