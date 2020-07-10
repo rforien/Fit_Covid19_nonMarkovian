@@ -32,11 +32,11 @@ class FitPatches(object):
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-10']
     dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-08']
     names_fit = ['Lockdown', 'After 11 May', 'After 10 June']
-    fit_columns = [None, ['Hospital admissions', 'Hospital deaths', 'ICU admissions'], 
-                   ['Hospital admissions', 'SOS Medecins actions']]
-    delays = np.array([[18, 28, 28, 10], [10, 15, 15], [10, 7]])
-    # fit_columns = [['Hospital deaths'], None, None, None]
-    # delays = np.array([[18], [18, 28, 28], [10, 15, 15], [10, 15, 15]])
+    # fit_columns = [None, ['Hospital admissions', 'Hospital deaths', 'ICU admissions'], 
+    #                ['Hospital admissions', 'Hospital deaths', 'ICU admissions']]
+    # delays = np.array([[18, 28, 28, 10], [10, 15, 15], [10, 15, 15]])
+    fit_columns = [None, None, None]
+    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [10, 15, 15, 8]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -74,6 +74,13 @@ class FitPatches(object):
             date_i = date.datetime.strptime(d, self.date_format)
             time[i] = (date_i - self.datetime_lockdown).days
         return time
+    
+    def time_to_date(self, times):
+        dates = np.size(times)*['']
+        for (i, t) in enumerate(times):
+            day = self.datetime_lockdown + date.timedelta(days = int(t))
+            dates[i] = day.strftime(self.date_format)
+        return dates
     
     def fit_patches(self):
         self.fitters = []
@@ -122,7 +129,7 @@ class FitPatches(object):
             handles = [handles[j] for j in order]
             labels = [labels[j] for j in order]
             self.axs[i].legend(handles, labels)
-        fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medcins actions'], 
+        fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
                    loc = (.53, .3), fontsize = 13)
         fig.set_tight_layout(True)
         
@@ -397,6 +404,11 @@ class FitPatches(object):
         self.fig.legend()
         self.dhaxs[self.n-1,0].set_xlabel('Time since lockdown (days)')
         self.dhaxs[self.n-1,1].set_xlabel('Time since lockdown (days)')
+        for i in np.arange(self.n):
+            for j in np.arange(2):
+                times = self.dhaxs[i,j].get_xticks()
+                labels = self.time_to_date(times)
+                self.dhaxs[i, j].set_xticklabels(labels)
     
 #    def plot_deaths_tot(self, deaths_tot):
 #        self.observed_times_deaths_tot = self.index_to_time(deaths_tot.index)
@@ -523,6 +535,11 @@ class FitPatches(object):
                         label = 'f = %.2f%%' % (100*f), 
                         linestyle = self.linestyles[np.mod(j, np.size(self.linestyles))])
         self.axs[2].legend(loc = 'upper right', title = 'Infection fatality ratio')
+        
+        for i in np.arange(self.n):
+            times = self.axs[i].get_xticks()
+            labels = self.time_to_date(times)
+            self.axs[i].set_xticklabels(labels)
         self.fig.set_tight_layout(True)
     
     def plot_SIR_deaths_hosp(self, logscale = True):
@@ -563,6 +580,12 @@ class FitPatches(object):
             if logscale:
                 self.faxs[i,1].set_ylim((1e0, 5e5))
                 self.faxs[i,2].set_ylim((1e-1, 1e5))
+        for i in np.arange(self.n):
+            for j in np.arange(3):
+                times = self.faxs[i, j].get_xticks()
+                labels = self.time_to_date(copy.copy(times))
+                print(times, labels)
+                self.faxs[i, j].set_xticklabels(copy.copy(labels))
         self.fig.set_tight_layout(True)
     
     def plot_markov_vs_nonmarkov(self, p_reported, p_death, logscale = False):
@@ -575,7 +598,7 @@ class FitPatches(object):
         for i in np.arange(self.n):
             self.axs[i,0].set_ylabel(self.names[i], fontsize = 12)
             if not logscale:
-                self.axs[i,0].set_ylim((-.01, .11))
+                self.axs[i,0].set_ylim((-.01, .2))
             else:
                 self.axs[i,0].set_ylim((1e-2, 2e-1))
             for j in np.arange(3):
@@ -594,8 +617,10 @@ class FitPatches(object):
         self.compute_sir(p_reported, p_death, self.data[0].index[-1])
         # plot non-Markov
         for (i, sir) in enumerate(self.sir):
-            self.axs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0], 
-                    color = self.colors[2], label = 'non-Markovian SEIR model')
+            line, = self.axs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0], 
+                    color = self.colors[2])
+            if i == 0:
+                line.set_label('non-Markovian SEIR model')
             for (j, name) in enumerate(['Hospital admissions', 'Hospital deaths']):
                 sir.plot_event(name, daily = True, axes = self.axs[i,1+j], labels = False,
                                color = self.colors[2], linewidth = 1.5)
@@ -603,8 +628,10 @@ class FitPatches(object):
         self.compute_sir(p_reported, p_death, self.data[0].index[-1], Markov = True)
         # plot Markov
         for (i, sir) in enumerate(self.sir):
-            self.axs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
-                    linestyle = 'dashdot', color = self.colors[3], label = 'Markovian SEIR model')
+            line, = self.axs[i,0].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
+                    linestyle = 'dashdot', color = self.colors[3])
+            if i == 0:
+                line.set_label('Markovian SEIR model')
             for (j, name) in enumerate(['Hospital admissions', 'Hospital deaths']):
                 sir.plot_event(name, daily = True, axes = self.axs[i,1+j], labels = False,
                                color = self.colors[3], linewidth = 1.5)

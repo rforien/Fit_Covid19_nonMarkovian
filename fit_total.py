@@ -151,11 +151,11 @@ fit_total.fit_patches()
 #      fit_France.params['After lockdown'][6], fit_France.params['After 2 June'][6])
 
 # fit_total.rE[-1,:] = [.02, .02, .02]
-fit_total.compute_sir(.6, f, '2020-10-31', Markov = False, two_step_measures = True)
+fit_total.compute_sir(.6, f, '2020-08-31', Markov = False, two_step_measures = True)
 #fit_total.plot_fit_init(France, .6, .005)
 # fit_total.plot_fit_lockdown()
 #fit_total.plot_markov_vs_nonmarkov(.6, .005, logscale = True)
-#fit_total.plot_immunity([.002, .005, .01], .6, '2020-07-09')
+# fit_total.plot_immunity([.002, .005, .01], .6, '2020-07-10')
 #print(fit_total._fit_reported(np.array([.6, 14.8, .18, 4.7, .9])))
 #fit_total.fit_mcmc(5e3, np.array([.8, 14, .2, 7, .5]))
 #fit_total.compute_sir(.6, f, end_of_run = '2020-04-17', Markov = False)
