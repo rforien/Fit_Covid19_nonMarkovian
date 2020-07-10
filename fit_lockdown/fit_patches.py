@@ -87,10 +87,10 @@ class FitPatches(object):
             self.death_fitters[i].fit_init(self.start_fit_init, self.end_fit_init)
             self.r[i] = self.death_fitters[i].r
             self.deaths_at_lockdown[i] = self.death_fitters[i].deaths_at_lockdown()
-            for (j, name) in enumerate(self.names_fit):
+            for (j, fit) in enumerate(self.names_fit):
                 self.fitters[i].fit(self.dates_of_change[j], self.dates_end_fit[j],
-                            self.delays[j], name, self.fit_columns[j])
-                self.rE[j,i] = self.fitters[i].params[name]['growth rate']
+                            self.delays[j], fit, self.fit_columns[j])
+                self.rE[j,i] = self.fitters[i].rates[fit]
         print('Growth rates prior to lockdown: ', self.r)
         for (j, name) in enumerate(self.names_fit):
             print('Growth rates ' + name, self.rE[j])
