@@ -29,9 +29,9 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02']
-    dates_end_fit = ['2020-05-11', '2020-06-16', '2020-07-07']
-    names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
-    delays = np.array([[18, 28, 28], [10, 15, 15], [14, 21, 21]])
+    dates_end_fit = ['2020-05-11', '2020-06-09', '2020-07-01']
+    names_fit = ['Lockdown', 'After 11 May', 'After 10 June']
+    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 7], [10, 15, 15, 7]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -107,7 +107,17 @@ class FitPatches(object):
                 self.axs.append(plt.subplot(gs[x, y], sharey = self.axs[-1]))
             self.axs[i].set_title(self.names[i])
             data_lines = self.fitters[i].plot(self.axs[i])
-        fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions'], loc = (.53, .35), fontsize = 13)
+            self.axs[i].plot(self.death_fitters[i].index_init, self.death_fitters[i].best_fit_init_daily(),
+                    label = r'Before lockdown: $\rho$ = %.3f' % self.r[i], color = '#CC00CC')
+            self.axs[i].legend(loc = 'best')
+            # reorder legend (dirty)
+            handles, labels = self.axs[i].get_legend_handles_labels()
+            order = np.concatenate(([-1], np.arange(np.size(labels)-1)))
+            handles = [handles[j] for j in order]
+            labels = [labels[j] for j in order]
+            self.axs[i].legend(handles, labels)
+        fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medcins actions'], 
+                   loc = (.53, .35), fontsize = 13)
         fig.set_tight_layout(True)
         
     def fit_delays(self):
@@ -147,13 +157,23 @@ class FitPatches(object):
         k, theta = np.abs(X)
         return [np.abs((1+r*theta)**k/A-1), np.abs((1+rE*theta)**k/B-1)]
     
+    def _delay_transform_tsm(self, r, r_before, tau, delay_dist):
+        I1 = np.sum(np.exp(-r*delay_dist[:,0])*(delay_dist[:,0] <= tau)*delay_dist[:,1])
+        I2 = np.exp(-(r-r_before)*tau)*np.sum(np.exp(-r_before*(delay_dist[:,0]))*(delay_dist[:,0] > tau)*delay_dist[:,1])
+        return I1 + I2
+    
     def compute_p_hosp(self, p_death):
         assert hasattr(self, 'delays_death') and hasattr(self, 'delays_hosp')
         self.p_hosp = np.zeros(self.n)
         for i in np.arange(self.n):
+            if True:
+                delay_ratio = Laplace(self.delays_death[i], -self.r[i])/Laplace(self.delays_hosp[i], -self.r[i])
+            else:
+                tau = self.sir[i].lockdown_time-self.sir[i].init_phase
+                delay_ratio = (self._delay_transform_tsm(self.r[i], self.r_GE, tau, self.delays_death[i])/
+                               self._delay_transform_tsm(self.r[i], self.r_GE, tau, self.delays_hosp[i]))
             self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions'].values[1]/
-                       self.data[i]['Hospital deaths'].values[1])*(
-                        Laplace(self.delays_death[i], -self.r[i])/Laplace(self.delays_hosp[i], -self.r[i]))
+                           self.data[i]['Hospital deaths'].values[1])*delay_ratio
     
     def prepare_sir(self, p_reported, p_death, Markov = False, verbose = True, two_step_measures = True):
         EI_dist = EI_dist_covid(p_reported)
@@ -476,7 +496,7 @@ class FitPatches(object):
     
     linestyles = ['dashed', 'solid', 'dashdot']
     
-    def plot_immunity(self, f_values, p_reported, logscale = False):
+    def plot_immunity(self, f_values, p_reported, end_date, logscale = False):
         self.fig, self.axs = plt.subplots(1, self.n, dpi = self.dpi, figsize = (12, 4), sharey = True, sharex = True)
         for i in np.arange(self.n):
             self.axs[i].set_title(self.names[i])
@@ -488,7 +508,7 @@ class FitPatches(object):
         self.axs[0].set_ylabel('Proportion of infected individuals (1-S)', fontsize = 11)
         
         for (j, f) in enumerate(f_values):
-            self.compute_sir(p_reported, f, '2020-07-01')
+            self.compute_sir(p_reported, f, end_date)
             for (i, sir) in enumerate(self.sir):
                 self.axs[i].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
                         label = 'f = %.2f%%' % (100*f), 

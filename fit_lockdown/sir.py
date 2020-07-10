@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime as date
 import pandas as pd
+import scipy.integrate as integrate
 
 from fit_lockdown import *
 
@@ -417,4 +418,23 @@ class SEIR_nonMarkov(SIR_nonMarkov, SEIR_lockdown):
         self.i += 1
 
 class SEIR_varying_inf(SEIR_nonMarkov):
-    pass
+    def __init__(self, growth_rate_init, lambda_bar, date_lockdown, pop_size,
+                 two_step_measures = False, growth_rate_before_measures = 0, date_of_measures = ''):
+        self.lambda_bar = lambda_bar
+        self.I = integrate.quad(self.lambda_bar, 0, np.inf).y
+        super().__init__(growth_rate_init, np.array([[1, 1, 1]]), date_lockdown, pop_size,
+              two_step_measures, growth_rate_before_measures, date_of_measures)
+        
+    def contact_rate(self, r):
+        return integrate.quad(lambda t: self.lambda_bar(t)*np.exp(-r*t), 0, np.inf).y**-1
+    
+    def R0(self):
+        return self.l*self.I
+    
+    def contact_rate_R0(self, R0):
+        return R0/self.I
+    
+    def lead_eigen_vect(self, rho = None):
+        if rho == None:
+            rho = self.r
+        pass

@@ -11,15 +11,22 @@ import numpy as np
 
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-07-19h00_corrected.csv', delimiter = ';')
-data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-07-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-08-19h00_corrected.csv', delimiter = ';')
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-08-19h00.csv', delimiter = ';')
+data_sos = pd.read_csv('sursaud-corona-quot-dep-2020-07-08-19h15_corrected.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
 # forget sex
 data = data[data['sexe'] == 0]
+data_sos = data_sos[data_sos['sursaud_cl_age_corona'] == '0']
+# dep as string
+data_sos['dep'] = [str(dep) for dep in data_sos['dep'].values]
+
 # remove unused columns
 deaths = data.pivot(index = 'jour', columns = 'dep', values = 'dc')
+
+actes_sos = data_sos.pivot(index = 'date_de_passage', columns = 'dep', values = 'nbre_acte_corona')
 
 # remove dataoverseas
 overseas = ['971', '972', '973', '974', '976']
@@ -79,16 +86,21 @@ rea_GEHdF = rea[GrandEst + HautsdeFrance].sum(axis = 1).cumsum()
 rea_IdF = rea[IDF].sum(axis = 1).cumsum()
 rea_out = rea[Out].sum(axis = 1).cumsum()
 
-data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF), axis = 1)
-data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions']
+actes_IDF = actes_sos[IDF].sum(axis = 1).cumsum()
+actes_GEHdF = actes_sos[GrandEst + HautsdeFrance].sum(axis = 1).cumsum()
+actes_out = actes_sos[Out].sum(axis = 1).cumsum()
+actes_France = actes_IDF + actes_GEHdF + actes_out
 
-data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF), axis = 1)
+data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF, actes_IDF), axis = 1)
+data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
+
+data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF, actes_GEHdF), axis = 1)
 data_GEHdF.columns = data_IDF.columns
 
-data_out = pd.concat((admis_out, deaths_out, rea_out), axis = 1)
+data_out = pd.concat((admis_out, deaths_out, rea_out, actes_out), axis = 1)
 data_out.columns = data_IDF.columns
 
-data_France = pd.concat((admis_France, France, rea_France), axis = 1)
+data_France = pd.concat((admis_France, France, rea_France, actes_France), axis = 1)
 data_France.columns = data_IDF.columns
 
 data_patches = [data_IDF, data_GEHdF, data_out]
@@ -130,18 +142,18 @@ fit_total.fit_patches()
 #      fit_France.params['After lockdown'][6], fit_France.params['After 2 June'][6])
 
 # fit_total.rE[-1,:] = [.02, .02, .02]
-fit_total.compute_sir(.6, f, '2020-08-31', Markov = False, two_step_measures = True)
+#fit_total.compute_sir(.6, f, '2020-08-31', Markov = False, two_step_measures = True)
 #fit_total.plot_fit_init(France, .6, .005)
-# fit_total.plot_fit_lockdown()
+fit_total.plot_fit_lockdown()
 #fit_total.plot_markov_vs_nonmarkov(.6, .005, logscale = True)
-# fit_total.plot_immunity([.002, .005, .01], .6)
+#fit_total.plot_immunity([.002, .005, .01], .6, '2020-07-09')
 #print(fit_total._fit_reported(np.array([.6, 14.8, .18, 4.7, .9])))
 #fit_total.fit_mcmc(5e3, np.array([.8, 14, .2, 7, .5]))
 #fit_total.compute_sir(.6, f, end_of_run = '2020-04-17', Markov = False)
 #fit_total.sir[0].lockdown_constants(-.05, 20)
-fit_total.plot_deaths_hosp(logscale = False)
+#fit_total.plot_deaths_hosp(logscale = False)
 #[sir.plot() for sir in fit_total.sir]
-# fit_total.plot_SIR_deaths_hosp(logscale = False)
+#fit_total.plot_SIR_deaths_hosp(logscale = False)
 
 # shade areas depending on period
 # try fsolve with different starting point when fit doesn't work

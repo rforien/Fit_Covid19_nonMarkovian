@@ -33,35 +33,45 @@ class MultiFitter(object):
         self.starts = pd.DataFrame()
         self.end = pd.DataFrame()
     
-    def fit(self, start, end, delays, fit_key):
+    def fit(self, start, end, delays, fit_key, columns = None):
         assert end in self.cumul.index
-        assert np.size(delays) == self.n and np.min(delays) >= 0
+        if columns == None:
+            columns = self.columns
+        else:
+            for col in columns:
+                assert col in self.columns
+        assert np.size(delays) == np.size(columns) and np.min(delays) >= 0
         # compute starting dates, lengths and scales
-        starts = []
+        starts = self.n*['']
         lengths = np.zeros(self.n)
         scale = np.zeros(2*self.n)
         start_date = date.datetime.strptime(start, self.date_format)
         end_date = date.datetime.strptime(end, self.date_format)
-        for (i, col) in enumerate(self.columns):
+        for (i, col) in enumerate(columns):
+            j = np.where(self.columns == col)[0]
             d = start_date + date.timedelta(days = int(delays[i]))
-            starts.append(d.strftime(self.date_format))
-            assert starts[i] in self.cumul.index
-            lengths[i] = (end_date-d).days+1
-            scale[i] = self.cumul[col][starts[i]]
-            scale[self.n+i] = -(self.cumul[col][end]-
-                 self.cumul[col][starts[i]])
-        init_params = np.concatenate((np.ones(2*self.n), [-.1]))
+            starts[j] = d.strftime(self.date_format)
+            assert starts[j] in self.cumul.index
+            lengths[j] = (end_date-d).days+1
+            scale[j] = -self.cumul[col][starts[j]]
+            scale[self.n+j] = -(self.cumul[col][end]-
+                 self.cumul[col][starts[j]])
+#            scale[self.n+i] = scale[i]
+        init_params = np.concatenate((np.ones(2*np.size(columns)), [-.1]))
+#        init_params = np.ones(2*self.n+1)
         result = optim.minimize(self._error, init_params, args = (
-                starts, end, lengths, scale), method = 'Nelder-Mead')
+                starts, end, lengths, scale, columns), method = 'BFGS')
         self.params[fit_key] = result.x
         self.scales[fit_key] = scale
         self.starts[fit_key] = starts
         self.end[fit_key] = [end]
         
-    def _error(self, params, starts, end, lengths, scale):
+    def _error(self, params, starts, end, lengths, scale, columns):
         E = 0
-        for (i, col) in enumerate(self.columns):
-            x = self.cumul[col][starts[i]:end].values
+        for (i, col) in enumerate(columns):
+            j = np.argwhere(self.columns == col)[0]
+            x = self.cumul[col][starts[j]:end].values
+            # unfinished business
             y = self.exp_fit(params, i, scale, np.arange(lengths[i]))
             E += np.sum(np.abs(1-y/x)**2)
         return E
