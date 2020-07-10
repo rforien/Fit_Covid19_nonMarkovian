@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 
-data_sos = pd.read_csv('sursaud-corona-quot-dep-2020-07-08-19h15.csv', delimiter = ';')
+data_sos = pd.read_csv('sursaud-corona-quot-dep-2020-07-09-19h15.csv', delimiter = ';')
 
 index = np.where(data_sos['dep'] == 40)[0]
 for j in index:
@@ -18,4 +18,4 @@ for j in index:
 
 print(np.sum(data_sos['dep'] == 40))
 
-data_sos.to_csv('sursaud-corona-quot-dep-2020-07-08-19h15_corrected.csv', sep = ';')
+data_sos.to_csv('sursaud-corona-quot-dep-2020-07-09-19h15_corrected.csv', sep = ';')

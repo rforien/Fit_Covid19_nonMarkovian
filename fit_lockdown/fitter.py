@@ -51,7 +51,7 @@ class MultiFitter(object):
             assert self.in_fit[fit_key].any(), "Invalid columns argument"
         m = np.sum(self.in_fit[fit_key])
         assert np.size(delays) == m and np.min(delays) >= 0
-        print('fitting ' + fit_key)
+        # print('fitting ' + fit_key)
         # compute starting dates, lengths and scales
         self.start[fit_key] = ''
         self.end[fit_key] = ''
@@ -83,7 +83,7 @@ class MultiFitter(object):
             j = np.where(columns == col)[0][0]
             self.start_value[fit_key][col] = result.x[j]
             self.end_value[fit_key][col] = result.x[m+j]
-        print(result.x[-1])
+        # print(result.x[-1])
         self.rates[fit_key] = result.x[-1]
         
     def _error(self, params, fit_key, columns):
@@ -106,7 +106,7 @@ class MultiFitter(object):
         return (rho*(end-start)*np.exp(rho*t)/(np.exp(rho*length)-1))
     
     def fit_value_at(self, column, fit, at_date, daily = False):
-        assert fit in self.params.columns
+        assert fit in self.start.columns
         assert self.in_fit[fit][column]
         start = date.datetime.strptime(self.start[fit][column], self.date_format)
         d = date.datetime.strptime(at_date, self.date_format)
@@ -138,7 +138,7 @@ class MultiFitter(object):
             for fit in fits:
                 assert fit in self.start.columns
         data_lines = []
-        color_keys = np.argsort(np.argsort(self.rates.values))/(np.size(self.rates)-1)
+        color_keys = np.argsort(np.argsort(self.rates.values))/(np.size(self.rates))
         for (i, col) in enumerate(self.columns):
             line, = axes.plot(self.date_to_time(self.daily[col].index), self.daily[col].values, 
                       linestyle = 'dashed', color = self.colors[i])
@@ -153,7 +153,7 @@ class MultiFitter(object):
                                             self.end_value[fit][col],
                                             self.rates[fit], self.length[fit][col],
                                             np.arange(self.length[fit][col]))
-                line, = axes.plot(index, values, color = cm.jet(color_keys[j]))
+                line, = axes.plot(index, values, color = cm.tab10(color_keys[j]))
                 if k == 0:
                     line.set_label(fit + r': $\rho$ = %.1e' % self.rates[fit])
                     k += 1

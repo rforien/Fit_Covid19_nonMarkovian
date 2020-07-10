@@ -13,7 +13,7 @@ import fit_lockdown as lockdown
 
 data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-09-19h00_corrected.csv', delimiter = ';')
 data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-09-19h00.csv', delimiter = ';')
-data_sos = pd.read_csv('sursaud-corona-quot-dep-2020-07-08-19h15_corrected.csv', delimiter = ';')
+data_sos = pd.read_csv('sursaud-corona-quot-dep-2020-07-09-19h15_corrected.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
 
@@ -91,24 +91,24 @@ actes_GEHdF = actes_sos[GrandEst + HautsdeFrance].sum(axis = 1).cumsum()
 actes_out = actes_sos[Out].sum(axis = 1).cumsum()
 actes_France = actes_IDF + actes_GEHdF + actes_out
 
-# data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF, actes_IDF), axis = 1)
-data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF), axis = 1)
-# data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
-data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions']
+data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF, actes_IDF), axis = 1)
+# data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF), axis = 1)
+data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
+# data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions']
 data_IDF.sort_index(inplace = True)
 
-# data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF, actes_GEHdF), axis = 1)
-data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF), axis = 1)
+data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF, actes_GEHdF), axis = 1)
+# data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF), axis = 1)
 data_GEHdF.columns = data_IDF.columns
 data_GEHdF.sort_index(inplace = True)
 
-# data_out = pd.concat((admis_out, deaths_out, rea_out, actes_out), axis = 1)
-data_out = pd.concat((admis_out, deaths_out, rea_out), axis = 1)
+data_out = pd.concat((admis_out, deaths_out, rea_out, actes_out), axis = 1)
+# data_out = pd.concat((admis_out, deaths_out, rea_out), axis = 1)
 data_out.columns = data_IDF.columns
 data_out.sort_index(inplace = True)
 
-# data_France = pd.concat((admis_France, France, rea_France, actes_France), axis = 1)
-data_France = pd.concat((admis_France, France, rea_France), axis = 1)
+data_France = pd.concat((admis_France, France, rea_France, actes_France), axis = 1)
+# data_France = pd.concat((admis_France, France, rea_France), axis = 1)
 data_France.columns = data_IDF.columns
 data_France.sort_index(inplace = True)
 
@@ -151,9 +151,9 @@ fit_total.fit_patches()
 #      fit_France.params['After lockdown'][6], fit_France.params['After 2 June'][6])
 
 # fit_total.rE[-1,:] = [.02, .02, .02]
-#fit_total.compute_sir(.6, f, '2020-08-31', Markov = False, two_step_measures = True)
+fit_total.compute_sir(.6, f, '2020-10-31', Markov = False, two_step_measures = True)
 #fit_total.plot_fit_init(France, .6, .005)
-fit_total.plot_fit_lockdown()
+# fit_total.plot_fit_lockdown()
 #fit_total.plot_markov_vs_nonmarkov(.6, .005, logscale = True)
 #fit_total.plot_immunity([.002, .005, .01], .6, '2020-07-09')
 #print(fit_total._fit_reported(np.array([.6, 14.8, .18, 4.7, .9])))
@@ -162,7 +162,7 @@ fit_total.plot_fit_lockdown()
 #fit_total.sir[0].lockdown_constants(-.05, 20)
 #fit_total.plot_deaths_hosp(logscale = False)
 #[sir.plot() for sir in fit_total.sir]
-#fit_total.plot_SIR_deaths_hosp(logscale = False)
+fit_total.plot_SIR_deaths_hosp(logscale = True)
 
 # shade areas depending on period
 # try fsolve with different starting point when fit doesn't work
