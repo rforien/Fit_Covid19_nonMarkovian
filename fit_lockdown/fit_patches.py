@@ -28,10 +28,14 @@ class FitPatches(object):
     lockdown_date = '2020-03-16'
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
-    dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02']
-    dates_end_fit = ['2020-05-11', '2020-06-09', '2020-07-01']
-    names_fit = ['Lockdown', 'After 11 May', 'After 10 June']
-    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 7], [10, 15, 15, 7]])
+    dates_of_change = ['2020-03-01', '2020-03-16', '2020-05-11', '2020-06-02']
+    dates_end_fit = ['2020-03-26', '2020-05-11', '2020-06-15', '2020-07-01']
+    names_fit = ['Before lockdown', 'Lockdown', 'After 11 May', 'After 2 June']
+    # fit_columns = [['Hospital deaths', 'SOS Medecins actions'],
+    #                None, ['Hospital admissions', 'Hospital deaths', 'ICU admissions'], ['Hospital admissions', 'SOS Medecins actions']]
+    # delays = np.array([[18, 10], [18, 28, 28, 10], [10, 15, 15], [10, 7]])
+    fit_columns = [['Hospital deaths'], None, None, None]
+    delays = np.array([[18], [18, 28, 28], [10, 15, 15], [10, 15, 15]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -43,7 +47,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 200
+    dpi = 100
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -85,8 +89,8 @@ class FitPatches(object):
             self.deaths_at_lockdown[i] = self.death_fitters[i].deaths_at_lockdown()
             for (j, name) in enumerate(self.names_fit):
                 self.fitters[i].fit(self.dates_of_change[j], self.dates_end_fit[j],
-                            self.delays[j], name)
-                self.rE[j,i] = self.fitters[i].params[name][6]
+                            self.delays[j], name, self.fit_columns[j])
+                self.rE[j,i] = self.fitters[i].params[name]['growth rate']
         print('Growth rates prior to lockdown: ', self.r)
         for (j, name) in enumerate(self.names_fit):
             print('Growth rates ' + name, self.rE[j])
@@ -107,15 +111,15 @@ class FitPatches(object):
                 self.axs.append(plt.subplot(gs[x, y], sharey = self.axs[-1]))
             self.axs[i].set_title(self.names[i])
             data_lines = self.fitters[i].plot(self.axs[i])
-            self.axs[i].plot(self.death_fitters[i].index_init, self.death_fitters[i].best_fit_init_daily(),
-                    label = r'Before lockdown: $\rho$ = %.3f' % self.r[i], color = '#CC00CC')
-            self.axs[i].legend(loc = 'best')
+            # self.axs[i].plot(self.death_fitters[i].index_init, self.death_fitters[i].best_fit_init_daily(),
+            #         label = r'Before lockdown: $\rho$ = %.3f' % self.r[i], color = '#CC00CC')
+            # self.axs[i].legend(loc = 'best')
             # reorder legend (dirty)
-            handles, labels = self.axs[i].get_legend_handles_labels()
-            order = np.concatenate(([-1], np.arange(np.size(labels)-1)))
-            handles = [handles[j] for j in order]
-            labels = [labels[j] for j in order]
-            self.axs[i].legend(handles, labels)
+            # handles, labels = self.axs[i].get_legend_handles_labels()
+            # order = np.concatenate(([-1], np.arange(np.size(labels)-1)))
+            # handles = [handles[j] for j in order]
+            # labels = [labels[j] for j in order]
+            # self.axs[i].legend(handles, labels)
         fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medcins actions'], 
                    loc = (.53, .35), fontsize = 13)
         fig.set_tight_layout(True)

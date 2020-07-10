@@ -9,7 +9,7 @@ Created on Wed Jul  1 22:14:17 2020
 import pandas as pd
 import numpy as np
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-08-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-09-19h00.csv', delimiter = ';')
 
 # correct date format
 
@@ -32,4 +32,4 @@ if np.size(index) == 6*101:
     k = int(np.size(index)/2)
     data = data.drop(index[k:])
 
-data.to_csv('donnees-hospitalieres-covid19-2020-07-08-19h00_corrected.csv', sep = ';')
+data.to_csv('donnees-hospitalieres-covid19-2020-07-09-19h00_corrected.csv', sep = ';')

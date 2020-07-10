@@ -11,8 +11,8 @@ import numpy as np
 
 import fit_lockdown as lockdown
 
-data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-08-19h00_corrected.csv', delimiter = ';')
-data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-08-19h00.csv', delimiter = ';')
+data = pd.read_csv('donnees-hospitalieres-covid19-2020-07-09-19h00_corrected.csv', delimiter = ';')
+data_new = pd.read_csv('donnees-hospitalieres-nouveaux-covid19-2020-07-09-19h00.csv', delimiter = ';')
 data_sos = pd.read_csv('sursaud-corona-quot-dep-2020-07-08-19h15_corrected.csv', delimiter = ';')
 
 deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
@@ -91,17 +91,26 @@ actes_GEHdF = actes_sos[GrandEst + HautsdeFrance].sum(axis = 1).cumsum()
 actes_out = actes_sos[Out].sum(axis = 1).cumsum()
 actes_France = actes_IDF + actes_GEHdF + actes_out
 
-data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF, actes_IDF), axis = 1)
-data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
+# data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF, actes_IDF), axis = 1)
+data_IDF = pd.concat((admis_IDF, deaths_IDF, rea_IdF), axis = 1)
+# data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
+data_IDF.columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions']
+data_IDF.sort_index(inplace = True)
 
-data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF, actes_GEHdF), axis = 1)
+# data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF, actes_GEHdF), axis = 1)
+data_GEHdF = pd.concat((admis_GEHdF, deaths_GEHdF, rea_GEHdF), axis = 1)
 data_GEHdF.columns = data_IDF.columns
+data_GEHdF.sort_index(inplace = True)
 
-data_out = pd.concat((admis_out, deaths_out, rea_out, actes_out), axis = 1)
+# data_out = pd.concat((admis_out, deaths_out, rea_out, actes_out), axis = 1)
+data_out = pd.concat((admis_out, deaths_out, rea_out), axis = 1)
 data_out.columns = data_IDF.columns
+data_out.sort_index(inplace = True)
 
-data_France = pd.concat((admis_France, France, rea_France, actes_France), axis = 1)
+# data_France = pd.concat((admis_France, France, rea_France, actes_France), axis = 1)
+data_France = pd.concat((admis_France, France, rea_France), axis = 1)
 data_France.columns = data_IDF.columns
+data_France.sort_index(inplace = True)
 
 data_patches = [data_IDF, data_GEHdF, data_out]
 names = ['Ile de France', 'Grand Est and Hauts-de-France', 'Rest of France']

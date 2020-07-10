@@ -12,9 +12,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.optimize as optim
 import datetime as date
+import matplotlib.cm as cm
+import itertools as itertl
 
 class MultiFitter(object):
     date_format = '%Y-%m-%d'
+    reference_date = '2020-01-01'
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     fit_colors = ['#d62728', '#8c564b', '#00AA00']
     
@@ -28,76 +31,100 @@ class MultiFitter(object):
         self.n = np.size(cumul, axis = 1)
         self.columns = cumul.columns
         self.daily = self.cumul.diff()
-        self.params = pd.DataFrame()
-        self.scales = pd.DataFrame()
-        self.starts = pd.DataFrame()
+        index = [(col, i) for (col, i) in itertl.product(self.columns, [0, 1])] + [('growth rate', 0)]
+        self.params = pd.DataFrame(index = pd.MultiIndex.from_tuples(index))
+        self.fit_columns = pd.DataFrame(index = self.columns)
+        self.scales = pd.DataFrame(index = pd.MultiIndex.from_product([self.columns, [0, 1]]))
+        self.starts = pd.DataFrame(index = self.columns)
         self.end = pd.DataFrame()
+        self.ref_datetime = date.datetime.strptime(self.reference_date, self.date_format)
     
     def fit(self, start, end, delays, fit_key, columns = None):
         assert end in self.cumul.index
         if columns == None:
             columns = self.columns
+            self.fit_columns[fit_key] = self.n*[True]
         else:
-            for col in columns:
-                assert col in self.columns
-        assert np.size(delays) == np.size(columns) and np.min(delays) >= 0
+            self.fit_columns[fit_key] = [col in columns for col in self.columns]
+            assert self.fit_columns[fit_key].any(), "Invalid columns argument"
+        m = np.sum(self.fit_columns[fit_key])
+        assert np.size(delays) == m and np.min(delays) >= 0
+        print('fitting ' + fit_key)
         # compute starting dates, lengths and scales
-        starts = self.n*['']
+        self.starts[fit_key] = self.n*['']
         lengths = np.zeros(self.n)
-        scale = np.zeros(2*self.n)
+        self.scales[fit_key] = np.zeros(2*self.n)
         start_date = date.datetime.strptime(start, self.date_format)
         end_date = date.datetime.strptime(end, self.date_format)
-        for (i, col) in enumerate(columns):
-            j = np.where(self.columns == col)[0]
-            d = start_date + date.timedelta(days = int(delays[i]))
-            starts[j] = d.strftime(self.date_format)
-            assert starts[j] in self.cumul.index
-            lengths[j] = (end_date-d).days+1
-            scale[j] = -self.cumul[col][starts[j]]
-            scale[self.n+j] = -(self.cumul[col][end]-
-                 self.cumul[col][starts[j]])
-#            scale[self.n+i] = scale[i]
-        init_params = np.concatenate((np.ones(2*np.size(columns)), [-.1]))
-#        init_params = np.ones(2*self.n+1)
-        result = optim.minimize(self._error, init_params, args = (
-                starts, end, lengths, scale, columns), method = 'BFGS')
-        self.params[fit_key] = result.x
-        self.scales[fit_key] = scale
-        self.starts[fit_key] = starts
+        for (i, col) in enumerate(self.columns):
+            if not self.fit_columns[fit_key][col]:
+                continue
+            j = np.sum(self.fit_columns[fit_key].values[:i])
+            d = start_date + date.timedelta(days = int(delays[j]))
+            self.starts[fit_key][col] = d.strftime(self.date_format)
+            assert self.starts[fit_key][col] in self.cumul.index
+            lengths[i] = (end_date-d).days+1
+            # self.scales[fit_key][col] = [self.cumul[col][self.starts[fit_key][col]], 
+            #             (self.cumul[col][end]-self.cumul[col][self.starts[fit_key][col]])]
+            self.scales[fit_key][col] = np.array([self.cumul[col][self.starts[fit_key][col]], 
+                        self.daily[col][self.starts[fit_key][col]]])/10
         self.end[fit_key] = [end]
+        init_params = np.concatenate((10*np.ones(2*m), [-.01]))
+        # init_params = np.ones(2*self.n+1)
+        result = optim.minimize(self._error, init_params, args = (
+                fit_key, lengths), method = 'Nelder-Mead')
+        self.params[fit_key] = (2*self.n+1)*[np.nan]
+        for (i, col) in enumerate(self.columns):
+            if not self.fit_columns[fit_key][col]:
+                continue
+            j = np.sum(self.fit_columns[fit_key].values[:i])
+            self.params[fit_key][col] = [result.x[j], result.x[m+j]]
+        print(result.x[-1])
+        self.params[fit_key]['growth rate'] = result.x[-1]
         
-    def _error(self, params, starts, end, lengths, scale, columns):
+    def _error(self, params, fit_key, lengths):
         E = 0
-        for (i, col) in enumerate(columns):
-            j = np.argwhere(self.columns == col)[0]
-            x = self.cumul[col][starts[j]:end].values
-            # unfinished business
-            y = self.exp_fit(params, i, scale, np.arange(lengths[i]))
+        for (i, col) in enumerate(self.columns):
+            if not self.fit_columns[fit_key][col]:
+                continue
+            j = int(np.sum(self.fit_columns[fit_key].values[:i]))
+            x = self.cumul[col][self.starts[fit_key][col]:self.end[fit_key][0]].values
+            y = self.exp_fit(params, col, j, self.scales[fit_key], np.arange(lengths[i]))
             E += np.sum(np.abs(1-y/x)**2)
         return E
     
-    def exp_fit(self, params, i, scale, t):
-        return (scale[i]*params[i] + scale[self.n+i]*params[self.n+i]*(
-                np.exp(params[2*self.n]*t)-1))
+    def exp_fit(self, params, column, j, scale, t):
+        m = int((np.size(params)-1)/2)
+        return (scale[column][0]*params[j] + 
+                scale[column][1]*params[m+j]*(np.exp(params[-1]*t)-1)/params[-1])
     
-    def exp_fit_daily(self, params, i, scale, t):
-        return (scale[self.n+i]*params[self.n+i]*
-                params[2*self.n]*np.exp(params[2*self.n]*t))
+    def exp_fit_daily(self, params, column, j, scale, t):
+        m = int((np.size(params)-1)/2)
+        return (scale[column][1]*params[m+j]*np.exp(params[-1]*t))
     
     def fit_value_at(self, column, fit, at_date, daily = False):
         assert fit in self.params.columns
-        assert column in self.columns
+        assert self.fit_columns[fit][column]
         i = np.argwhere(self.columns == column)[0][0]
-        start = date.datetime.strptime(self.starts[fit][i], self.date_format)
+        j = int(np.sum(self.fit_columns[fit].values[:i]))
+        start = date.datetime.strptime(self.starts[fit][column], self.date_format)
         d = date.datetime.strptime(at_date, self.date_format)
         t = (d-start).days
+        params = self.params[fit].values[~np.isnan(self.params[fit])]
         if daily:
-            return self.exp_fit_daily(self.params[fit], i, self.scales[fit], t)
+            return self.exp_fit_daily(params, column, j, self.scales[fit], t)
         else:
-            return self.exp_fit(self.params[fit], i, self.scales[fit], t)
+            return self.exp_fit(params, column, j, self.scales[fit], t)
+    
+    def date_to_time(self, dates):
+        time = np.zeros(np.size(dates))
+        for (i, d) in enumerate(dates):
+            day = date.datetime.strptime(d, self.date_format)
+            time[i] = (day-self.ref_datetime).days
+        return time
     
     def plot(self, axes = None, fits = None):
-        tick_interval = 20
+        tick_interval = 25
         if axes == None:
             plt.figure(dpi = 200)
             axes = plt.axes()
@@ -108,19 +135,25 @@ class MultiFitter(object):
                 assert fit in self.params.columns
         data_lines = []
         for (i, col) in enumerate(self.columns):
-            line, = axes.plot(self.daily[col].index, self.daily[col].values, 
+            line, = axes.plot(self.date_to_time(self.daily[col].index), self.daily[col].values, 
                       linestyle = 'dashed', color = self.colors[i])
             data_lines.append(line)
-            for (j, fit) in enumerate(fits):
-                index = self.cumul[self.starts[fit][i]:self.end[fit][0]].index
-                line, = axes.plot(index, self.exp_fit_daily(self.params[fit].values, i,
-                            self.scales[fit], np.arange(np.size(index))), color = self.fit_colors[j])
-                if i == 0:
-                    line.set_label(fit + r': $\rho$ = %.3f' % self.params[fit][2*self.n])
+        for (j, fit) in enumerate(fits):
+            for (i, col) in enumerate(self.columns):
+                if not self.fit_columns[fit][col]:
+                    continue
+                k = int(np.sum(self.fit_columns[fit].values[:i]))
+                index = self.date_to_time(self.cumul[self.starts[fit][i]:self.end[fit][0]].index)
+                params = self.params[fit].values[~np.isnan(self.params[fit])]
+                line, = axes.plot(index, self.exp_fit_daily(self.params[fit].values, col, k,
+                            self.scales[fit], np.arange(np.size(index))), 
+                                  color = cm.jet(4*(self.params[fit].values[-1]+.1)))
+                if k == 0:
+                    line.set_label(fit + r': $\rho$ = %.1e' % self.params[fit][-1])
         axes.set_yscale('log')
         axes.legend(loc = 'best')
         axes.grid(True)
-        axes.set_xticks(self.cumul.index[0::tick_interval])
+        axes.set_xticks(self.date_to_time(self.cumul.index[0::tick_interval]))
         axes.set_xticklabels(self.cumul.index[0::tick_interval])
         self.axes = axes
         return data_lines
