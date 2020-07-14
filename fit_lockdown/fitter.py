@@ -128,7 +128,7 @@ class MultiFitter(object):
         return time
     
     def plot(self, axes = None, fits = None):
-        tick_interval = 25
+        tick_interval = 28
         if axes == None:
             plt.figure(dpi = self.dpi)
             axes = plt.axes()

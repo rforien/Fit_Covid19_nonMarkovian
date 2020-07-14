@@ -30,13 +30,14 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-08']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-12']
     names_fit = ['Lockdown', 'After 11 May', 'After 10 June']
-    # fit_columns = [None, ['Hospital admissions', 'Hospital deaths', 'ICU admissions'], 
-    #                ['Hospital admissions', 'Hospital deaths', 'ICU admissions']]
-    # delays = np.array([[18, 28, 28, 10], [10, 15, 15], [10, 15, 15]])
-    fit_columns = [None, None, None]
-    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [10, 15, 15, 8]])
+#    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
+#    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
+#    fit_columns = [None, None, None]
+#    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 15, 10]])
+    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'ICU admissions']]
+    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 15]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -48,7 +49,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 100
+    dpi = 200
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -90,6 +91,7 @@ class FitPatches(object):
         self.r_post = np.zeros(self.n)
         self.deaths_at_lockdown = np.zeros(self.n)
         for (i, n) in enumerate(self.names):
+            print('Estimating growth rates in ' + n)
             self.fitters.append(MultiFitter(self.data[i]))
             self.death_fitters.append(Fitter(self.data[i]['Hospital deaths'], self.lockdown_date, 0))
             self.death_fitters[i].fit_init(self.start_fit_init, self.end_fit_init)
@@ -104,9 +106,10 @@ class FitPatches(object):
             print('Growth rates ' + name, self.rE[j])
 #        print('Deaths at lockdown: ', self.deaths_at_lockdown)
     
-    def plot_fit_lockdown(self):
+    def plot_fit_lockdown(self, display_legend = True):
         m = int(np.ceil(np.sqrt(self.n)))
-        gs = gridspec.GridSpec(m, m)
+        n = int(np.ceil(self.n/m))
+        gs = gridspec.GridSpec(n, m)
         fig = plt.figure(dpi = self.dpi, figsize = (14, 8))
 #        lines = []
         self.axs = []
@@ -122,15 +125,17 @@ class FitPatches(object):
             index_init = self.fitters[i].date_to_time(self.death_fitters[i].index_init)
             self.axs[i].plot(index_init, self.death_fitters[i].best_fit_init_daily(),
                     label = r'Before lockdown: $\rho$ = %.1e' % self.r[i], color = cm.tab10(.99))
-            self.axs[i].legend(loc = 'best')
-            # reorder legend (dirty)
-            handles, labels = self.axs[i].get_legend_handles_labels()
-            order = np.concatenate(([-1], np.arange(np.size(labels)-1)))
-            handles = [handles[j] for j in order]
-            labels = [labels[j] for j in order]
-            self.axs[i].legend(handles, labels)
-        fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
-                   loc = (.53, .3), fontsize = 13)
+            if display_legend:
+                self.axs[i].legend(loc = 'best')
+                # reorder legend (dirty)
+                handles, labels = self.axs[i].get_legend_handles_labels()
+                order = np.concatenate(([-1], np.arange(np.size(labels)-1)))
+                handles = [handles[j] for j in order]
+                labels = [labels[j] for j in order]
+                self.axs[i].legend(handles, labels)
+        if display_legend:
+            fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
+                       loc = (.73, .3), fontsize = 13)
         fig.set_tight_layout(True)
         
     def fit_delays(self):
