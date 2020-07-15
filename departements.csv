@@ -1,0 +1,102 @@
+"departement";"nom";"region";"population"
+"01";"Ain";"Auvergne-Rhône-Alpe";656955
+"02";"Aisne";"Hauts-de-France";526050
+"03";"Allier";"Auvergne-Rhône-Alpe";331315
+"04";"Alpes-de-Haute-Provence";"Provence-Alpes-Côte d’Azur";165197
+"05";"Hautes-Alpes";"Provence-Alpes-Côte d’Azur";141756
+"06";"Alpes-Maritimes";"Provence-Alpes-Côte d’Azur";1079396
+"07";"Ardèche";"Auvergne-Rhône-Alpe";326875
+"08";"Ardennes";"Grand Est";265531
+"09";"Ariège";"Occitanie";152398
+"10";"Aube";"Grand Est";309907
+"11";"Aude";"Occitanie";372705
+"12";"Aveyron";"Occitanie";278360
+"13";"Bouches-du-Rhône";"Provence-Alpes-Côte d’Azur";2034469
+"14";"Calvados";"Normandie";691453
+"15";"Cantal";"Auvergne-Rhône-Alpe";142811
+"16";"Charente";"Nouvelle Aquitaine";348180
+"17";"Charente-Maritime";"Nouvelle Aquitaine";647080
+"18";"Cher";"Centre-Val de Loire";296404
+"19";"Corrèze";"Nouvelle Aquitaine";240336
+"2A";"Corse-du-Sud";"Corse";162421
+"2B";"Haute-Corse";"Corse";182258
+"21";"Côte-d'Or";"Bourgogne-Franche-Comté";532886
+"22";"Côtes-d'Armor";"Bretagne";596186
+"23";"Creuse";"Nouvelle Aquitaine";116270
+"24";"Dordogne";"Nouvelle Aquitaine";408393
+"25";"Doubs";"Bourgogne-Franche-Comté";539449
+"26";"Drôme";"Auvergne-Rhône-Alpe";520560
+"27";"Eure";"Normandie";600687
+"28";"Eure-et-Loir";"Centre-Val de Loire";429425
+"29";"Finistère";"Bretagne";906554
+"30";"Gard";"Occitanie";748468
+"31";"Haute-Garonne";"Occitanie";1400935
+"32";"Gers";"Occitanie";190040
+"33";"Gironde";"Nouvelle Aquitaine";1633440
+"34";"Hérault";"Occitanie";1176145
+"35";"Ille-et-Vilaine";"Bretagne";1082073
+"36";"Indre";"Centre-Val de Loire";217139
+"37";"Indre-et-Loire";"Centre-Val de Loire";605380
+"38";"Isère";"Auvergne-Rhône-Alpe";1264979
+"39";"Jura";"Bourgogne-Franche-Comté";257849
+"40";"Landes";"Nouvelle Aquitaine";411979
+"41";"Loir-et-Cher";"Centre-Val de Loire";327835
+"42";"Loire";"Auvergne-Rhône-Alpe";764737
+"43";"Haute-Loire";"Auvergne-Rhône-Alpe";226901
+"44";"Loire-Atlantique";"Pays de la Loire";1437137
+"45";"Loiret";"Centre-Val de Loire";682890
+"46";"Lot";"Occitanie";173166
+"47";"Lot-et-Garonne";"Nouvelle Aquitaine";330336
+"48";"Lozère";"Occitanie";76286
+"49";"Maine-et-Loire";"Pays de la Loire";815881
+"50";"Manche";"Normandie";490669
+"51";"Marne";"Grand Est";563823
+"52";"Haute-Marne";"Grand Est";169250
+"53";"Mayenne";"Pays de la Loire";305365
+"54";"Meurthe-et-Moselle";"Grand Est";730398
+"55";"Meuse";"Grand Est";181641
+"56";"Morbihan";"Bretagne";755566
+"57";"Moselle";"Grand Est";1035866
+"58";"Nièvre";"Bourgogne-Franche-Comté";199596
+"59";"Nord";"Hauts-de-France";2588988
+"60";"Oise";"Hauts-de-France";825077
+"61";"Orne";"Normandie";276903
+"62";"Pas-de-Calais";"Hauts-de-France";1452778
+"63";"Puy-de-Dôme";"Auvergne-Rhône-Alpe";660240
+"64";"Pyrénées-Atlantiques";"Nouvelle Aquitaine";683169
+"65";"Hautes-Pyrénées";"Occitanie";226839
+"66";"Pyrénées-Orientales";"Occitanie";479000
+"67";"Bas-Rhin";"Grand Est";1132607
+"68";"Haut-Rhin";"Grand Est";763204
+"69";"Rhône";"Auvergne-Rhône-Alpe";1876051
+"70";"Haute-Saône";"Bourgogne-Franche-Comté";233194
+"71";"Saône-et-Loire";"Bourgogne-Franche-Comté";547824
+"72";"Sarthe";"Pays de la Loire";560227
+"73";"Savoie";"Auvergne-Rhône-Alpe";432548
+"74";"Haute-Savoie";"Auvergne-Rhône-Alpe";828405
+"75";"Paris";"Île de France";2148271
+"76";"Seine-Maritime";"Normandie";1243788
+"77";"Seine-et-Marne";"Île de France";1423607
+"78";"Yvelines";"Île de France";1448625
+"79";"Deux-Sèvres";"Nouvelle Aquitaine";372627
+"80";"Somme";"Hauts-de-France";569769
+"81";"Tarn";"Occitanie";387898
+"82";"Tarn-et-Garonne";"Occitanie";262618
+"83";"Var";"Provence-Alpes-Côte d’Azur";1073836
+"84";"Vaucluse";"Provence-Alpes-Côte d’Azur";560997
+"85";"Vendée";"Pays de la Loire";683187
+"86";"Vienne";"Nouvelle Aquitaine";437398
+"87";"Haute-Vienne";"Nouvelle Aquitaine";370774
+"88";"Vosges";"Grand Est";359520
+"89";"Yonne";"Bourgogne-Franche-Comté";332096
+"90";"Territoire de Belfort";"Bourgogne-Franche-Comté";140145
+"91";"Essonne";"Île de France";1319401
+"92";"Hauts-de-Seine";"Île de France";1613762
+"93";"Seine-Saint-Denis";"Île de France";1670149
+"94";"Val-de-Marne";"Île de France";1406041
+"95";"Val-d'Oise";"Île de France";1248354
+"971";"Guadeloupe ";"Guadeloupe";376879
+"972";"Martinique ";"Martinique";358749
+"973";"Guyane";"Guyane";290691
+"974";"La Réunion";"La Réunion";859959
+"976";"Mayotte";"Mayotte";279471

@@ -1,5 +1,11 @@
-*.csv
 *.pdf
 *.eps
 *.xcf
 *.pyc
+
+calcul_EI0.xoj
+28,000*
+JHI_data*
+delay_param*
+estim-pop-dep*
+tmp*
