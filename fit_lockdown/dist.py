@@ -74,7 +74,7 @@ def unique(dist):
         udist[indices[i],1] += dist[i,1]
     return udist
 
-def EI_dist_covid(p_reported, fixed_E = True, n = 10):
+def EI_dist_covid(p_reported, fixed_E = False, n = 10):
     assert p_reported >= 0 and p_reported <= 1
     if fixed_E:
         E_dist = np.array([[3, 1]])

@@ -30,14 +30,15 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-12']
-    names_fit = ['Lockdown', 'After 11 May', 'After 10 June']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-15']
+    names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
 #    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
 #    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
     fit_columns = [None, None, None]
-    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 15, 10]])
-#    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'ICU admissions']]
-#    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 15]])
+    # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 21, 10]])
+    # fit_columns = [None, None, ['Hospital admissions']]
+    # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15]])
+    delays = np.array([[18, 28, 28], [10, 15, 15], [15, 21, 21]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -49,7 +50,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 200
+    dpi = 100
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -223,7 +224,7 @@ class FitPatches(object):
             self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions']['2020-03-19']/
                            self.data[i]['Hospital deaths']['2020-03-19'])*delay_ratio
     
-    def prepare_sir(self, p_reported, p_death, Markov = False, verbose = True, two_step_measures = True):
+    def prepare_sir(self, p_reported, p_death, Markov = False, verbose = True, two_step_measures = False):
         EI_dist = EI_dist_covid(p_reported)
         self.sir = []
         if Markov:
@@ -287,127 +288,40 @@ class FitPatches(object):
                                            self.delays_events[i*m+j], event)
             time.sleep(.001)
         
-    
-    def _fit_reported(self, params):
-        print(params)
-        # delay_hosp = delay_hosp_covid()
-        # delay_death = delay_death_covid()
-        # E_dist = np.array([[3, 1]])
-        # I_dist = np.concatenate(([1, params[2]]*([3, 0] + [2, 1]*beta_dist(2, 2)),
-        #           [1, 1-params[2]]*([5, 0] + [10, 1]*beta_dist(2, 2))), axis = 0)
-#        delay_hosp, delay_death = delay_hosp_death_covid(params[1], params[2]*params[1], 
-#                                                         params[3], params[4]*params[3])
-        # print(np.sum(delay_hosp[:,0]*delay_hosp[:,1]), np.sum(delay_death[:,0]*delay_death[:,1]))
-        # EI_dist = EI_dist_covid(params[0])
-        f = .005
-        self.compute_sir(params[0], f, params_delays = params[1:], end_of_run = '2020-05-11', verbose = False, Markov = False)
-        return self.mean_error()
-    
-    #best fit so far : [38, 36, .85] keep this for now and do another run later ?
-    # choose a simple distribution for delay hosp to death
-    def fit_mcmc(self, T, init_params):
-        beta = 15
-        T = int(T)
-        params = init_params
-        current_fit = self._fit_reported(params)
-        self.mcmc_traj = np.zeros((T, np.size(params)))
-        self.mcmc_fit = np.zeros(T)
-        for i in np.arange(T):
-            p = self.propose(copy.copy(params))
-            # print(params, p)
-            fit = self._fit_reported(p)
-            # print(current_fit, fit)
-            print(np.exp(-beta*(fit-current_fit)))
-            if fit < current_fit or np.random.binomial(1, np.exp(-beta*(fit-current_fit))):
-                print('accept')
-                params = copy.copy(p)
-                current_fit = copy.copy(fit)
-            self.mcmc_traj[i,:] = params
-            self.mcmc_fit[i] = current_fit
-        k = np.argmin(self.mcmc_fit)
-        self.best_fit = self.mcmc_traj[k,:]
-        print(self.best_fit)
-        
-    scale = np.array([.1, 1, .1, 1, .1])
-    up_bound = np.array([1, 18, .99, 25, .99])
-    low_bound = np.array([0, 10, 0, 0, 0])
-    def propose(self, params):
-        k = np.random.choice(np.arange(np.size(params)), p = [.2, .3, .1, .3, .1])
-        # print(k)
-        params[k] = params[k] + np.random.normal(0, self.scale[k])
-        params = np.minimum(self.up_bound, self.low_bound + np.abs(self.low_bound - params))
-        params = np.maximum(self.low_bound, self.up_bound - np.abs(self.up_bound - params))
-        # if k in [1, 3]:
-        #     params[k] = np.abs(params[k] + np.random.normal(0, 1))
-        #     if k == 3 and params[k] > 25:
-        #         params[k] = np.maximum(0, 2*25-params[k])
-        #     if k == 1 and params[k] > 15:
-        #         params[k] = np.maximum(0, 2*15-params[k])
-        # elif k in [2, 4]:
-        #     params[k] += (2*np.random.binomial(1, .5)-1)*.1
-        #     if params[k] >= 1:
-        #         params[k] = 0.9
-        #     elif params[k] < 0:
-        #         params[k] = .1
-        # elif k == 0:
-        #     if params[k] - .05 < 0:
-        #         params[k] += .05
-        #     elif params[k] + .05 > 1:
-        #         params[k] -= .05
-        #     else:
-        #         params[k] += (2*np.random.binomial(1, .5)-1)*.05
-        return params
-    
-    def error_at(self, date_death, date_hosp):
-        assert hasattr(self, 'sir')
-        E = 0
-        delay_death = (date.datetime.strptime(date_death, self.date_format)-self.datetime_lockdown).days
-        delay_hosp = (date.datetime.strptime(date_hosp, self.date_format)-self.datetime_lockdown).days
+    def plot_events(self, daily = True, logscale = True):
+        m = int(np.ceil(np.sqrt(self.n)))
+        n = int(np.ceil(self.n/m))
+        gs = gridspec.GridSpec(n, m)
+        fig = plt.figure(dpi = self.dpi, figsize = (14, 8))
+#        lines = []
+        self.axs = []
         for (i, sir) in enumerate(self.sir):
-            x = self.deaths[self.names[i]][date_death]
-            y = sir.deaths[sir.shift(sir.lockdown_time + delay_death)]
-#            print(x,y)
-            E += (1-y/x)**2
-            x = self.death_fitters[i].scale*np.prod(self.death_fitters[i].fit_params)
-            y = sir.daily_deaths[sir.shift(sir.lockdown_time + delay_death)]
-#            print(x,y)
-            E += (1-y/x)**2
-            x = self.hosp[self.names[i]][date_hosp]
-            y = sir.hosp[sir.shift(sir.lockdown_time + delay_hosp)]
-#            print(x,y)
-            E += (1-y/x)**2
-            x = self.hosp_fitters[i].scale*np.prod(self.hosp_fitters[i].fit_params)
-            y = sir.daily_hosp[sir.shift(sir.lockdown_time + delay_hosp)]
-#            print(x,y)
-            E += (1-y/x)**2
-        return E
-    
-    def mean_error(self):
-        assert hasattr(self, 'sir')
-        E = 0
-        for (i, sir) in enumerate(self.sir):
-            end_date = (self.datetime_lockdown + date.timedelta(days = sir.times[-1] - sir.lockdown_time))
-            delta = (date.datetime.strptime(self.deaths.index[-1], self.date_format)-end_date).days
-            end_date = end_date.strftime(self.date_format)
-            if not end_date in self.deaths.index:
-                end_date = self.deaths.index[-1]
-                delta = 0
-            x = self.deaths[self.names[i]][:end_date].values
-            dt = sir.times_death[1]-sir.times_death[0]
-            y = sir.deaths[np.floor((self.observed_times_deaths[:-delta-1]+sir.lockdown_time)/dt).astype(int)]
-            E += np.mean((1-y/x)**2)
-            x = self.hosp[self.names[i]][:end_date]
-            dt = sir.times_hosp[1]-sir.times_hosp[0]
-            y = sir.hosp[np.floor((self.observed_times_hosp[:-delta-1]+sir.lockdown_time)/dt).astype(int)]
-            E += np.mean((1-y/x)**2)
-        return E
-    
-    def fit_data(self, init_params, bounds = []):
-        if bounds == []:
-            self.result = optim.minimize(self._fit_fixed, init_params, method = 'Nelder-Mead')
-        else:
-            self.result = optim.minimize(self._fit_fixed, init_params, method = 'L-BFGS-B', bounds = bounds)
-        print(self.result.x)
+            x = np.floor_divide(i, m)
+            y = np.mod(i, m)
+            if i == 0:
+                self.axs.append(plt.subplot(gs[x, y]))
+            else:
+                self.axs.append(plt.subplot(gs[x, y]))
+            self.axs[i].set_title(self.names[i])
+            if logscale:
+                self.axs[i].set_yscale('log')
+            
+            if daily:
+                data_lines = self.axs[i].plot(self.index_to_time(self.data[i].index), self.data[i].diff(), 
+                                         linestyle = 'dashed', linewidth = 1.2)
+                sir_lines = self.axs[i].plot(sir.times-sir.lockdown_time, sir.daily)
+                if logscale:
+                    self.axs[i].set_ylim((1, 2*np.max(sir.daily.values)))
+            else:
+                data_lines = self.axs[i].plot(self.index_to_time(self.data[i].index), self.data[i],
+                                              linestyle = 'dashed', linewidth = 1.2)
+                sir_lines = self.axs[i].plot(sir.times-sir.lockdown_time, sir.cumul)
+                if logscale:
+                    self.axs[i].set_ylim((1e-1, 2*np.max(sir.cumul.values)))
+            for i in np.arange(np.size(data_lines)):
+                sir_lines[i].set_color(data_lines[i].get_color())
+        fig.legend()
+        fig.set_tight_layout(True)
     
     def plot_deaths_hosp(self, logscale = True):
         self.fig, self.dhaxs = plt.subplots(self.n, 2, dpi = self.dpi, figsize = (10, 16), sharex = True)

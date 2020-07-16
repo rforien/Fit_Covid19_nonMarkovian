@@ -13,7 +13,7 @@ dep_file = 'departements.csv'
 
 def patches_from_regions(regions):
     deps = pd.read_csv(dep_file, delimiter = ';', index_col = 'departement')
-    n = np.size(regions)
+    n = np.size(regions, axis = 0)
     patches = n*[[]]
     sizes = np.zeros(n)
     for (i, region) in enumerate(regions):
@@ -24,7 +24,7 @@ def patches_from_regions(regions):
 
 def patches_from_region_list(region_list):
     deps = pd.read_csv(dep_file, delimiter = ';', index_col = 'departement')
-    n = np.size(region_list)
+    n = np.size(region_list, axis = 0)
     patches = n*[[]]
     sizes = np.zeros(n)
     for (i, reg_list) in enumerate(region_list):

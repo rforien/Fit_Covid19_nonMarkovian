@@ -10,15 +10,16 @@ import pandas as pd
 import numpy as np
 import os as os
 
-data_hosp_file = 'donnees-hospitalieres-covid19-2020-07-13-19h00_corrected.csv'
-data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-07-13-19h00.csv'
-data_sos_file = 'sursaud-corona-quot-dep-2020-07-13-19h15_corrected.csv'
+data_hosp_file = 'donnees-hospitalieres-covid19-2020-07-15-19h00_corrected.csv'
+data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-07-15-19h00.csv'
+data_sos_file = 'sursaud-corona-quot-dep-2020-07-15-19h15_corrected.csv'
 
 columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
 
 def correct_hosp_data():
     data = pd.read_csv(data_hosp_file[:-14] + '.csv', delimiter = ';')
 
+    print('Correcting date format')
     # correct date format
     dates = ['27/06/2020', '28/06/2020', '29/06/2020']
     correct_dates = ['2020-06-27', '2020-06-28', '2020-06-29']
@@ -31,12 +32,15 @@ def correct_hosp_data():
             data['jour'][j] = correct_dates[i]
     print(np.unique(data['jour']))
     
+    print('Removing duplicate entries')
     # remove duplicate entries for 2020-07-03
-    index = np.where(data['jour'] == '2020-07-03')[0]
-    if np.size(index) == 6*101:
-        print('remove duplicate')
-        k = int(np.size(index)/2)
-        data = data.drop(index[k:])
+    duplicates = ['2020-07-03', '2020-07-14']
+    for dup in duplicates:
+        index = np.where(data['jour'] == dup)[0]
+        if np.size(index) == 6*101:
+            print('remove duplicate for ' + dup)
+            k = int(np.size(index)/2)
+            data = data.drop(index[k:])
     
     data.to_csv(data_hosp_file, sep = ';')
 
@@ -51,10 +55,12 @@ def correct_sos_data():
     
     data_sos.to_csv(data_sos_file, sep = ';')
 
-def gather_data(patches, include_early = False, index = 0):
+def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
     if not os.path.isfile(data_hosp_file):
+        print('Correcting Hospital data')
         correct_hosp_data()
     if not os.path.isfile(data_sos_file):
+        print('Correcting SOS Medecins data')
         correct_sos_data()
     
     data_hosp = pd.read_csv(data_hosp_file, delimiter = ';')
@@ -78,8 +84,9 @@ def gather_data(patches, include_early = False, index = 0):
     for dep in rea.columns:
         rea[dep] += in_rea[dep].values[0]
     actes_sos = data_sos.pivot(index = 'date_de_passage', columns = 'dep', values = 'nbre_acte_corona').cumsum()
+    actes_sos = actes_sos['2020-03-01':]
     
-    n = np.size(patches)
+    n = np.size(patches, axis = 0)
     data_patches = n*[pd.DataFrame]
     for (i, patch) in enumerate(patches):
         deaths_patch = deaths[patch].sum(axis = 1)
@@ -88,8 +95,13 @@ def gather_data(patches, include_early = False, index = 0):
         admis_patch = admissions[patch].sum(axis = 1)
         rea_patch = rea[patch].sum(axis = 1)
         sos_patch = actes_sos[patch].sum(axis = 1)
-        data_patches[i] = pd.concat((admis_patch, deaths_patch, rea_patch, sos_patch), axis = 1)
-        data_patches[i].columns = columns
+        if SOS_medecins:
+            data_patches[i] = pd.concat((admis_patch, deaths_patch, rea_patch, sos_patch), axis = 1)
+            data_patches[i].columns = columns
+        else:
+            data_patches[i] = pd.concat((admis_patch, deaths_patch, rea_patch), axis = 1)
+            data_patches[i].columns = columns[:-1]
+            
         data_patches[i].sort_index(inplace = True)
     
     return data_patches
