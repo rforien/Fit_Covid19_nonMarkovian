@@ -30,12 +30,12 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-15']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-17']
     names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
 #    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
 #    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
     fit_columns = [None, None, None]
-    # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 21, 10]])
+#    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 21, 10]])
     # fit_columns = [None, None, ['Hospital admissions']]
     # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15]])
     delays = np.array([[18, 28, 28], [10, 15, 15], [15, 21, 21]])
@@ -50,7 +50,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 100
+    dpi = 200
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -292,7 +292,7 @@ class FitPatches(object):
         m = int(np.ceil(np.sqrt(self.n)))
         n = int(np.ceil(self.n/m))
         gs = gridspec.GridSpec(n, m)
-        fig = plt.figure(dpi = self.dpi, figsize = (14, 8))
+        fig = plt.figure(dpi = self.dpi, figsize = (12, 7))
 #        lines = []
         self.axs = []
         for (i, sir) in enumerate(self.sir):
@@ -303,6 +303,7 @@ class FitPatches(object):
             else:
                 self.axs.append(plt.subplot(gs[x, y]))
             self.axs[i].set_title(self.names[i])
+            self.axs[i].grid(True)
             if logscale:
                 self.axs[i].set_yscale('log')
             
@@ -320,7 +321,15 @@ class FitPatches(object):
                     self.axs[i].set_ylim((1e-1, 2*np.max(sir.cumul.values)))
             for i in np.arange(np.size(data_lines)):
                 sir_lines[i].set_color(data_lines[i].get_color())
-        fig.legend()
+        for i in np.arange(self.n):
+            times = self.axs[i].get_xticks()
+            labels = self.time_to_date(times)
+            self.axs[i].set_xticklabels(labels)
+        labels = []
+        for event in self.events.values:
+            labels.append('Predicted ' + event)
+        fig.legend(tuple(data_lines + sir_lines), tuple(self.events) + tuple(labels), 
+                   loc = (.52, .32), ncol = 2, fontsize = 12)
         fig.set_tight_layout(True)
     
     def plot_deaths_hosp(self, logscale = True):
@@ -474,7 +483,7 @@ class FitPatches(object):
         self.fig, self.axs = plt.subplots(1, self.n, dpi = self.dpi, figsize = (12, 4), sharey = True, sharex = True)
         for i in np.arange(self.n):
             self.axs[i].set_title(self.names[i])
-            self.axs[i].set_xlabel('Time (days since lockdown)')
+#            self.axs[i].set_xlabel('Time (days since lockdown)')
             self.axs[i].grid(True)
             self.axs[i].yaxis.set_tick_params(which = 'both', labelleft = True)
             if logscale:

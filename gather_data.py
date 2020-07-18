@@ -10,9 +10,9 @@ import pandas as pd
 import numpy as np
 import os as os
 
-data_hosp_file = 'donnees-hospitalieres-covid19-2020-07-15-19h00_corrected.csv'
-data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-07-15-19h00.csv'
-data_sos_file = 'sursaud-corona-quot-dep-2020-07-15-19h15_corrected.csv'
+data_hosp_file = 'donnees-hospitalieres-covid19-2020-07-17-19h00_corrected.csv'
+data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-07-17-19h00.csv'
+data_sos_file = 'sursaud-corona-quot-dep-2020-07-18-19h15_corrected.csv'
 
 columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
 
