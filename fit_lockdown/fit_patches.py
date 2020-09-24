@@ -29,16 +29,16 @@ class FitPatches(object):
     lockdown_date = '2020-03-16'
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
-    dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-17']
-    names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
+    dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-07-10']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-07', '2020-09-15']
+    names_fit = ['Lockdown', 'After 11 May', 'After 2 June', 'After 10 July']
 #    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
 #    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
-    fit_columns = [None, None, None]
-#    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 21, 10]])
+    fit_columns = [None, None, None, ['Hospital admissions']]
+    # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [10, 15, 15, 8], [15, 21, 21, 10]])
     # fit_columns = [None, None, ['Hospital admissions']]
     # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15]])
-    delays = np.array([[18, 28, 28], [10, 15, 15], [15, 21, 21]])
+    delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15], [15]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -136,7 +136,7 @@ class FitPatches(object):
                 self.axs[i].legend(handles, labels)
         if display_legend:
             fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
-                       loc = (.73, .3), fontsize = 13)
+                       loc = "lower right", fontsize = 13)
         fig.set_tight_layout(True)
         
     def fit_delays(self):
@@ -209,6 +209,7 @@ class FitPatches(object):
             self.probas[event] = np.zeros(self.n)
             for (i, name) in enumerate(self.names):
                 self.probas[event][name] = self.compute_proba(p_death, event, i)
+                assert self.probas[event][name] > 0 and self.probas[event][name] <= 1
         
     
     def compute_p_hosp(self, p_death):
@@ -289,6 +290,8 @@ class FitPatches(object):
             time.sleep(.001)
         
     def plot_events(self, daily = True, logscale = True):
+        tick_interval = int(np.size(self.sir[0].times)/4)
+        print(tick_interval)
         m = int(np.ceil(np.sqrt(self.n)))
         n = int(np.ceil(self.n/m))
         gs = gridspec.GridSpec(n, m)
@@ -312,18 +315,18 @@ class FitPatches(object):
                                          linestyle = 'dashed', linewidth = 1.2)
                 sir_lines = self.axs[i].plot(sir.times-sir.lockdown_time, sir.daily)
                 if logscale:
-                    self.axs[i].set_ylim((1, 2*np.max(sir.daily.values)))
+                    self.axs[i].set_ylim((1e-1, 2*np.max(sir.daily.values)))
             else:
                 data_lines = self.axs[i].plot(self.index_to_time(self.data[i].index), self.data[i],
                                               linestyle = 'dashed', linewidth = 1.2)
                 sir_lines = self.axs[i].plot(sir.times-sir.lockdown_time, sir.cumul)
                 if logscale:
                     self.axs[i].set_ylim((1e-1, 2*np.max(sir.cumul.values)))
-            for i in np.arange(np.size(data_lines)):
-                sir_lines[i].set_color(data_lines[i].get_color())
-        for i in np.arange(self.n):
-            times = self.axs[i].get_xticks()
-            labels = self.time_to_date(times)
+            for j in np.arange(np.size(data_lines)):
+                sir_lines[j].set_color(data_lines[j].get_color())
+            tick_times = (sir.times-sir.lockdown_time)[0::tick_interval]
+            labels = self.time_to_date(tick_times)
+            self.axs[i].set_xticks(tick_times)
             self.axs[i].set_xticklabels(labels)
         labels = []
         for event in self.events.values:
