@@ -36,3 +36,23 @@ def patches_from_region_list(region_list):
         sizes[i] = deps['population'][patches[i]].sum()
     return patches, sizes
 
+def split_region(region):
+    deps = pd.read_csv(dep_file, delimiter = ';', index_col = 'departement')
+    assert region in deps['region'].values
+    index = [reg == region for reg in deps['region'].values]
+    patches = deps.index[index].values
+    sizes = deps['population'][patches].values
+    patches = [[patch] for patch in patches]
+    return patches, sizes
+
+def patches_from_departments(dep_names):
+    deps = pd.read_csv(dep_file, delimiter = ';', index_col = 'departement')
+    n = np.size(dep_names)
+    patches = n*[[]]
+    sizes = np.zeros(n)
+    for (i, name) in enumerate(dep_names):
+        patches[i] = [deps[deps['nom'] == name].index[0]]
+        sizes[i] = deps[deps['nom'] == name]['population'][0]
+    return patches, sizes
+    
+

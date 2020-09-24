@@ -128,7 +128,8 @@ class MultiFitter(object):
         return time
     
     def plot(self, axes = None, fits = None):
-        tick_interval = 28
+        tick_interval = int((self.date_to_time([self.cumul.index[-1]])-
+                             self.date_to_time([self.cumul.index[0]]))/4)
         if axes == None:
             plt.figure(dpi = self.dpi)
             axes = plt.axes()

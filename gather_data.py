@@ -10,9 +10,11 @@ import pandas as pd
 import numpy as np
 import os as os
 
-data_hosp_file = 'donnees-hospitalieres-covid19-2020-08-25-19h00_corrected.csv'
-data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-08-25-19h00.csv'
-data_sos_file = 'sursaud-corona-quot-dep-2020-08-25-19h15_corrected.csv'
+
+data_hosp_file = 'donnees-hospitalieres-covid19-2020-09-23-19h00_corrected.csv'
+data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-09-23-19h00.csv'
+data_sos_file = 'sursaud-corona-quot-dep-2020-09-23-19h15_corrected.csv'
+
 
 columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
 
@@ -59,22 +61,24 @@ def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
     if not os.path.isfile(data_hosp_file):
         print('Correcting Hospital data')
         correct_hosp_data()
-    if not os.path.isfile(data_sos_file):
+    if not os.path.isfile(data_sos_file) and SOS_medecins:
         print('Correcting SOS Medecins data')
         correct_sos_data()
     
     data_hosp = pd.read_csv(data_hosp_file, delimiter = ';')
     data_hosp_daily = pd.read_csv(data_hosp_daily_file, delimiter = ';')
-    data_sos = pd.read_csv(data_sos_file, delimiter = ';')
+    if SOS_medecins:
+        data_sos = pd.read_csv(data_sos_file, delimiter = ';')
     
     if include_early:
         deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
     
     # forget sex
     data_hosp = data_hosp[data_hosp['sexe'] == 0]
-    data_sos = data_sos[data_sos['sursaud_cl_age_corona'] == '0']
-    # dep as string
-    data_sos['dep'] = [str(dep) for dep in data_sos['dep'].values]
+    if SOS_medecins:
+        data_sos = data_sos[data_sos['sursaud_cl_age_corona'] == '0']
+        # dep as string
+        data_sos['dep'] = [str(dep) for dep in data_sos['dep'].values]
     
     deaths = data_hosp.pivot(index = 'jour', columns = 'dep', values = 'dc')
     data_hosp['cumul_hosp'] = data_hosp['hosp'] + data_hosp['rad'] + data_hosp['dc']
@@ -83,8 +87,9 @@ def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
     in_rea = data_hosp.pivot(index = 'jour', columns = 'dep', values = 'rea')
     for dep in rea.columns:
         rea[dep] += in_rea[dep].values[0]
-    actes_sos = data_sos.pivot(index = 'date_de_passage', columns = 'dep', values = 'nbre_acte_corona').cumsum()
-    actes_sos = actes_sos['2020-03-01':]
+    if SOS_medecins:
+        actes_sos = data_sos.pivot(index = 'date_de_passage', columns = 'dep', values = 'nbre_acte_corona').cumsum()
+        actes_sos = actes_sos['2020-03-01':]
     
     n = np.size(patches, axis = 0)
     data_patches = n*[pd.DataFrame]
@@ -94,8 +99,8 @@ def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
             deaths_patch = pd.concat((deaths_early['2020-02-15':'2020-03-17'], deaths_patch), axis = 0)
         admis_patch = admissions[patch].sum(axis = 1)
         rea_patch = rea[patch].sum(axis = 1)
-        sos_patch = actes_sos[patch].sum(axis = 1)
         if SOS_medecins:
+            sos_patch = actes_sos[patch].sum(axis = 1)
             data_patches[i] = pd.concat((admis_patch, deaths_patch, rea_patch, sos_patch), axis = 1)
             data_patches[i].columns = columns
         else:
