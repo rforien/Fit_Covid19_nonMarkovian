@@ -29,16 +29,16 @@ class FitPatches(object):
     lockdown_date = '2020-03-16'
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
-    dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-15']
-    names_fit = ['Lockdown', 'After 11 May', 'After 2 June']
+    dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-07-01']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-07', '2020-08-24']
+    names_fit = ['Lockdown', 'After 11 May', 'After 2 June', 'After 1 July']
 #    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
 #    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
-    fit_columns = [None, None, None]
+    # fit_columns = [None, None, None, None]
     # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15, 21, 21, 10]])
-    # fit_columns = [None, None, ['Hospital admissions']]
-    # delays = np.array([[18, 28, 28, 10], [10, 15, 15, 8], [15]])
-    delays = np.array([[18, 28, 28], [10, 15, 15], [15, 21, 21]])
+    fit_columns = [None, None, None, ['Hospital admissions']]
+    delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15], [18]])
+    # delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15], [15, 21, 21]])
     # time to wait after lockdown to start fitting the slope
     delays_lockdown = np.array([18, 28, 28])
     # idem for post-lockdown fit
@@ -318,8 +318,11 @@ class FitPatches(object):
                 sir_lines = self.axs[i].plot(sir.times-sir.lockdown_time, sir.cumul)
                 if logscale:
                     self.axs[i].set_ylim((1e-1, 2*np.max(sir.cumul.values)))
-            for i in np.arange(np.size(data_lines)):
-                sir_lines[i].set_color(data_lines[i].get_color())
+            for j in np.arange(np.size(data_lines)):
+                sir_lines[j].set_color(data_lines[j].get_color())
+            times = self.axs[i].get_xticks()
+            labels = self.time_to_date(times)
+            self.axs[i].set_xticklabels(labels)
         fig.legend()
         fig.set_tight_layout(True)
     

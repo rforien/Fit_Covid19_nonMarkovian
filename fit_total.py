@@ -34,7 +34,7 @@ data_patches = gather_data(patches, SOS_medecins=False)
 
 fit_total = lockdown.FitPatches(data_patches, names, sizes)
 fit_total.fit_patches()
-fit_total.prepare_sir(.8, .005)
+# fit_total.prepare_sir(.8, .005)
 
 #fit_France = lockdown.MultiFitter(data_France)
 #fit_France.fit(fit_total.lockdown_date, fit_total.lockdown_end_date,
@@ -48,9 +48,9 @@ fit_total.prepare_sir(.8, .005)
 #      fit_France.params['After lockdown'][6], fit_France.params['After 2 June'][6])
 
 # fit_total.rE[-1,:] = [.02, .02, .02]
-fit_total.compute_sir(.8, .005, '2020-08-31', Markov = False, two_step_measures = False)
+fit_total.compute_sir(.8, .005, '2020-10-31', Markov = False, two_step_measures = False)
 #fit_total.plot_fit_init(France, .6, .005)
-# fit_total.plot_fit_lockdown()
+fit_total.plot_fit_lockdown()
 # fit_total.plot_markov_vs_nonmarkov(.8, .005, logscale = False)
 # fit_total.plot_immunity([.002, .005, .01], .8, '2020-07-31')
 #print(fit_total._fit_reported(np.array([.6, 14.8, .18, 4.7, .9])))
