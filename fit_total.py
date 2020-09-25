@@ -50,9 +50,9 @@ fit_total.fit_patches()
 fit_total.plot_fit_lockdown()
 # lockdown.plt.show()
 
-fit_total.compute_sir(.8, .005, '2020-12-31', Markov = False, two_step_measures = False)
-fit_total.plot_events()
-fit_total.plot_events(daily = False, logscale = False)
+# fit_total.compute_sir(.8, .005, '2020-12-31', Markov = False, two_step_measures = False)
+# fit_total.plot_events()
+# fit_total.plot_events(daily = False, logscale = False)
 
 #fit_total.plot_fit_init(France, .6, .005)
 # fit_total.plot_markov_vs_nonmarkov(.8, .005, logscale = False)

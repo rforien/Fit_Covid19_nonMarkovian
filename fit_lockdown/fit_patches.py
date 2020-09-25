@@ -30,7 +30,7 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-07-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-07', '2020-09-23']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-21', '2020-09-23']
     names_fit = ['Lockdown', 'After 11 May', 'After 2 June', 'After 10 July']
 #    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
 #    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
@@ -125,7 +125,7 @@ class FitPatches(object):
             data_lines = self.fitters[i].plot(self.axs[i])
             index_init = self.fitters[i].date_to_time(self.death_fitters[i].index_init)
             self.axs[i].plot(index_init, self.death_fitters[i].best_fit_init_daily(),
-                    label = r'Before lockdown: $\rho$ = %.1e' % self.r[i], color = cm.tab10(.99))
+                    label = r'Before lockdown: $\rho$ = %.1e' % self.r[i], color = cm.autumn(0))
             if display_legend:
                 self.axs[i].legend(loc = 'best')
                 # reorder legend (dirty)
@@ -136,7 +136,7 @@ class FitPatches(object):
                 self.axs[i].legend(handles, labels)
         if display_legend:
             fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
-                       loc = "lower right", fontsize = 13)
+                       loc = "upper right", fontsize = 13)
         fig.set_tight_layout(True)
         
     def fit_delays(self):

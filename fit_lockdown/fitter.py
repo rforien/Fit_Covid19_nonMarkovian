@@ -19,6 +19,7 @@ class MultiFitter(object):
     date_format = '%Y-%m-%d'
     reference_date = '2020-01-01'
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    # colors = [cm.Dark2(x) for x in np.linspace(0, 1, 8, endpoint = False)]
     dpi = 100
     
     def __init__(self, cumul):
@@ -139,7 +140,7 @@ class MultiFitter(object):
             for fit in fits:
                 assert fit in self.start.columns
         data_lines = []
-        color_keys = np.argsort(np.argsort(self.rates.values))/(np.size(self.rates))
+        color_keys = (np.argsort(np.argsort(self.rates.values))/(np.size(self.rates)))[::-1]
         for (i, col) in enumerate(self.columns):
             line, = axes.plot(self.date_to_time(self.daily[col].index), self.daily[col].values, 
                       linestyle = 'dashed', color = self.colors[i])
@@ -154,7 +155,7 @@ class MultiFitter(object):
                                             self.end_value[fit][col],
                                             self.rates[fit], self.length[fit][col],
                                             np.arange(self.length[fit][col]))
-                line, = axes.plot(index, values, color = cm.tab10(color_keys[j]))
+                line, = axes.plot(index, values, color = cm.autumn(color_keys[j]))
                 if k == 0:
                     line.set_label(fit + r': $\rho$ = %.1e' % self.rates[fit])
                     k += 1
