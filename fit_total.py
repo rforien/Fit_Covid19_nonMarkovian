@@ -12,16 +12,16 @@ from gather_data import gather_data
 from build_patches import *
 import fit_lockdown as lockdown
 
-# region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France'], ['Auvergne-Rhône-Alpe',
-#               'Bourgogne-Franche-Comté', 'Bretagne', 'Centre-Val de Loire', 'Normandie',
-#               'Nouvelle Aquitaine', 'Occitanie', 'Pays de la Loire', "Provence-Alpes-Côte d’Azur"]]
-# names = ['Ile de France', 'Grand Est and Hauts-de-France', 'Rest of France']
+region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France'], ['Auvergne-Rhône-Alpe',
+              'Bourgogne-Franche-Comté', 'Bretagne', 'Centre-Val de Loire', 'Normandie',
+              'Nouvelle Aquitaine', 'Occitanie', 'Pays de la Loire', "Provence-Alpes-Côte d’Azur"]]
+names = ['Ile de France', 'Grand Est and Hauts-de-France', 'Rest of France']
 
-region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France', 'Bourgogne-Franche-Comté'], 
-                  ['Auvergne-Rhône-Alpe', "Provence-Alpes-Côte d’Azur"],
-                  ['Nouvelle Aquitaine', 'Occitanie'],
-                  ['Bretagne', 'Centre-Val de Loire', 'Normandie', 'Pays de la Loire']]
-names = ['Ile de France', 'Nord Est', 'Sud Est', 'Sud Ouest', 'Nord Ouest']
+# region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France', 'Bourgogne-Franche-Comté'], 
+#                   ['Auvergne-Rhône-Alpe', "Provence-Alpes-Côte d’Azur"],
+#                   ['Nouvelle Aquitaine', 'Occitanie'],
+#                   ['Bretagne', 'Centre-Val de Loire', 'Normandie', 'Pays de la Loire']]
+# names = ['Ile de France', 'Nord Est', 'Sud Est', 'Sud Ouest', 'Nord Ouest']
 
 # region_list = [['Île de France', 'Grand Est', 'Hauts-de-France', 'Bourgogne-Franche-Comté', 
 #                 'Auvergne-Rhône-Alpe', "Provence-Alpes-Côte d’Azur",
@@ -53,9 +53,9 @@ fit_total.fit_patches()
 
 fit_total.plot_fit_lockdown()
 
-# fit_total.compute_sir(.8, .005, '2020-09-30', Markov = False, two_step_measures = False)
-# fit_total.plot_events()
-# fit_total.plot_events(daily = False, logscale = False)
+fit_total.compute_sir(.8, .005, '2020-09-30', Markov = False, two_step_measures = False)
+fit_total.plot_events()
+fit_total.plot_events(daily = False, logscale = False)
 
 #fit_total.plot_fit_init(France, .6, .005)
 # fit_total.plot_markov_vs_nonmarkov(.8, .005, logscale = False)

@@ -49,7 +49,7 @@ def gamma_dist(k, theta, n = 400):
     assert k > 0 and theta > 0
     assert type(n)==int and n > 2
     dist = np.zeros((n,2))
-    dist[:,0] = np.linspace(0, k*theta+2*k*theta**2, n, endpoint = False)
+    dist[:,0] = np.linspace(0, k*theta+5*np.sqrt(k)*theta, n, endpoint = False)
     cumdist = np.concatenate((sp.gammainc(k, dist[:,0]/theta), [1]))
     dist[:,1] = np.diff(cumdist)
     return dist
