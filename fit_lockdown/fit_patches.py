@@ -30,7 +30,7 @@ class FitPatches(object):
     lockdown_end_date = '2020-05-11'
     end_post_lockdown = '2020-06-16'
     dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-07-10']
-    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-21', '2020-09-23']
+    dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-21', '2020-10-07']
     names_fit = ['Lockdown', 'After 11 May', 'After 2 June', 'After 10 July']
 #    fit_columns = [None, None, ['Hospital admissions', 'Hospital deaths', 'SOS Medecins actions']]
 #    delays = np.array([[18, 28, 28, 10], [10, 15, 15, 10], [15, 21, 10]])
@@ -50,7 +50,7 @@ class FitPatches(object):
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
     
-    dpi = 100
+    dpi = 200
     
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     
@@ -136,8 +136,9 @@ class FitPatches(object):
                 self.axs[i].legend(handles, labels)
         if display_legend:
             fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
-                       loc = "upper right", fontsize = 13)
+                       loc = (.65, .25), fontsize = 13)
         fig.set_tight_layout(True)
+        return fig
         
     def fit_delays(self):
         delta = 35
@@ -288,6 +289,32 @@ class FitPatches(object):
                 sir.compute_delayed_event(self.probas[event][self.names[i]],
                                            self.delays_events[i*m+j], event)
             time.sleep(.001)
+    
+    def plot_delays(self):
+        m = int(np.ceil(np.sqrt(self.n)))
+        n = int(np.ceil(self.n/m))
+        p = len(self.events)
+        gs = gridspec.GridSpec(n, m)
+        fig = plt.figure(dpi = self.dpi, figsize = (12, 7))
+        self.axs = []
+        for (i, name) in enumerate(self.names):
+            x = np.floor_divide(i, m)
+            y = np.mod(i, m)
+            self.axs.append(plt.subplot(gs[x, y]))
+            self.axs[i].set_title(name)
+            self.axs[i].set_xlabel('Days since infection')
+            self.axs[i].set_xlim((0, 40))
+            for (j, event) in enumerate(self.events):
+                dx = np.concatenate(([1], np.diff(self.delays_events[i*p+j][:,0])))
+                line, = self.axs[i].plot(self.delays_events[i*p+j][:,0], self.delays_events[i*p+j][:,1]/dx)
+                mean = np.sum(self.delays_events[i*p+j][:,0]*self.delays_events[i*p+j][:,1])
+                self.axs[i].vlines(mean, 0, np.max(self.delays_events[i*p+j][:,1]/dx), 
+                                   color = line.get_color(), linestyle = 'dashed')
+                if i==self.n-1:
+                    line.set_label('Infection to ' + event + ' delay')
+            if i==self.n-1:
+                self.axs[i].legend(loc='best')
+        fig.set_tight_layout(True)
         
     def plot_events(self, daily = True, logscale = True):
         tick_interval = int(np.size(self.sir[0].times)/4)
@@ -332,7 +359,7 @@ class FitPatches(object):
         for event in self.events.values:
             labels.append('Predicted ' + event)
         fig.legend(tuple(data_lines + sir_lines), tuple(self.events) + tuple(labels), 
-                   loc = 'lower right', ncol = 2, fontsize = 12)
+                    loc = 'lower right', ncol = 2, fontsize = 12)
         fig.set_tight_layout(True)
     
     def plot_deaths_hosp(self, logscale = True):
@@ -483,6 +510,7 @@ class FitPatches(object):
     linestyles = ['dashed', 'solid', 'dashdot']
     
     def plot_immunity(self, f_values, p_reported, end_date, logscale = False):
+        tick_interval = int(np.size(self.sir[0].times)/2)
         self.fig, self.axs = plt.subplots(1, self.n, dpi = self.dpi, figsize = (12, 4), sharey = True, sharex = True)
         for i in np.arange(self.n):
             self.axs[i].set_title(self.names[i])
@@ -494,16 +522,17 @@ class FitPatches(object):
         self.axs[0].set_ylabel('Proportion of infected individuals (1-S)', fontsize = 11)
         
         for (j, f) in enumerate(f_values):
-            self.compute_sir(p_reported, f, end_date)
+            self.compute_sir(p_reported, f, end_date, two_step_measures = False)
             for (i, sir) in enumerate(self.sir):
                 self.axs[i].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
                         label = 'f = %.2f%%' % (100*f), 
                         linestyle = self.linestyles[np.mod(j, np.size(self.linestyles))])
         self.axs[2].legend(loc = 'upper right', title = 'Infection fatality ratio')
         
-        for i in np.arange(self.n):
-            times = self.axs[i].get_xticks()
-            labels = self.time_to_date(times)
+        for (i, sir) in enumerate(self.sir):
+            tick_times = (sir.times-sir.lockdown_time)[0::tick_interval]
+            labels = self.time_to_date(tick_times)
+            self.axs[i].set_xticks(tick_times)
             self.axs[i].set_xticklabels(labels)
         self.fig.set_tight_layout(True)
     

@@ -2,6 +2,7 @@
 *.eps
 *.xcf
 *.pyc
+.spyproject*
 
 calcul_EI0.xoj
 28,000*
