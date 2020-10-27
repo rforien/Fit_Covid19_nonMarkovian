@@ -95,8 +95,10 @@ class MultiFitter(object):
                 continue
             j = np.where(columns == col)[0][0]
             x = self.cumul[col][self.start[fit_key][col]:self.end[fit_key][col]].values
-            y = self.exp_fit(params[j], params[m+j], params[-1], self.length[fit_key][col], 
-                             np.arange(self.length[fit_key][col]))
+            t = self.date_to_time(self.cumul[self.start[fit_key][col]:self.end[fit_key][col]].index)
+            t = t-self.date_to_time([self.start[fit_key][col]])[0]
+            y = self.exp_fit(params[j], params[m+j], params[-1], 
+                             self.length[fit_key][col], t)
             E += np.sum(np.abs(1-y/x)**2)
         return E
     
@@ -151,10 +153,11 @@ class MultiFitter(object):
                 if not self.in_fit[fit][col]:
                     continue
                 index = self.date_to_time(self.daily[self.start[fit][col]:self.end[fit][col]].index)
+                t = index - index[0]
                 values = self.exp_fit_daily(self.start_value[fit][col],
                                             self.end_value[fit][col],
                                             self.rates[fit], self.length[fit][col],
-                                            np.arange(self.length[fit][col]))
+                                            t)
                 line, = axes.plot(index, values, color = cm.autumn(color_keys[j]))
                 if k == 0:
                     line.set_label(fit + r': $\rho$ = %.1e' % self.rates[fit])

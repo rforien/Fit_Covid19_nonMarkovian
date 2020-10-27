@@ -12,16 +12,16 @@ from gather_data import gather_data
 from build_patches import *
 import fit_lockdown as lockdown
 
-region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France'], ['Auvergne-Rhône-Alpe',
-              'Bourgogne-Franche-Comté', 'Bretagne', 'Centre-Val de Loire', 'Normandie',
-              'Nouvelle Aquitaine', 'Occitanie', 'Pays de la Loire', "Provence-Alpes-Côte d’Azur"]]
-names = ['Ile de France', 'Grand Est and Hauts-de-France', 'Rest of France']
+# region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France'], ['Auvergne-Rhône-Alpe',
+#               'Bourgogne-Franche-Comté', 'Bretagne', 'Centre-Val de Loire', 'Normandie',
+#               'Nouvelle Aquitaine', 'Occitanie', 'Pays de la Loire', "Provence-Alpes-Côte d’Azur"]]
+# names = ['Ile de France', 'Grand Est and Hauts-de-France', 'Rest of France']
 
-# region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France', 'Bourgogne-Franche-Comté'], 
-#                   ['Auvergne-Rhône-Alpe', "Provence-Alpes-Côte d’Azur"],
-#                   ['Nouvelle Aquitaine', 'Occitanie'],
-#                   ['Bretagne', 'Centre-Val de Loire', 'Normandie', 'Pays de la Loire']]
-# names = ['Ile de France', 'Nord Est', 'Sud Est', 'Sud Ouest', 'Nord Ouest']
+region_list = [['Île de France'], ['Grand Est', 'Hauts-de-France', 'Bourgogne-Franche-Comté'], 
+                  ['Auvergne-Rhône-Alpe', "Provence-Alpes-Côte d’Azur"],
+                  ['Nouvelle Aquitaine', 'Occitanie'],
+                  ['Bretagne', 'Centre-Val de Loire', 'Normandie', 'Pays de la Loire']]
+names = ['Ile de France', 'Nord Est', 'Sud Est', 'Sud Ouest', 'Nord Ouest']
 
 # region_list = [['Île de France', 'Grand Est', 'Hauts-de-France', 'Bourgogne-Franche-Comté', 
 #                 'Auvergne-Rhône-Alpe', "Provence-Alpes-Côte d’Azur",
@@ -47,15 +47,22 @@ patches, sizes = patches_from_region_list(region_list)
 data_patches = gather_data(patches, SOS_medecins=False)
 
 fit_total = lockdown.FitPatches(data_patches, names, sizes)
+
+fit_total.dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-07-10']
+fit_total.dates_end_fit = ['2020-05-11', '2020-06-15', '2020-07-21', '2020-10-01']
+fit_total.names_fit = ['Lockdown', 'After 11 May', 'After 2 June', 'After 10 July']
+fit_total.delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15], [15, 21, 21]])
+
 fit_total.fit_patches()
 # fit_total.prepare_sir(.8, .005)
 # fit_total.plot_delays()
 
 fit_total.plot_fit_lockdown()
 
-fit_total.compute_sir(.8, .005, '2020-09-30', Markov = False, two_step_measures = False)
+fit_total.compute_sir(.8, .006, '2020-10-31', Markov = False, two_step_measures = False)
+# fit_total.sir[0].plot()
 fit_total.plot_events()
-fit_total.plot_events(daily = False, logscale = False)
+# fit_total.plot_events(daily = False, logscale = False)
 
 #fit_total.plot_fit_init(France, .6, .005)
 # fit_total.plot_markov_vs_nonmarkov(.8, .005, logscale = False)

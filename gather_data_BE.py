@@ -31,13 +31,23 @@ def gather_data_BE():
     return data
 
 data = [gather_data_BE()]
-print(data)
+# print(data)
 
 fit_BE = lockdown.FitPatches(data, ['Belgium'], [11431406])
 
+fit_BE.lockdown_date = '2020-03-17'
 fit_BE.delays = np.array([[28, 18], [15, 10], [15, 10], [28, 18]])
-fit_BE.start_fit_init = '2020-03-10'
+fit_BE.start_fit_init = '2020-03-11'
+fit_BE.end_fit_init = '2020-03-21'
+fit_BE.dates_of_change = ['2020-03-17', '2020-05-11', '2020-06-15', '2020-08-05']
+fit_BE.dates_end_fit = ['2020-05-11', '2020-06-15', '2020-08-14', '2020-10-04']
 
 fit_BE.fit_patches()
 
 fit_BE.plot_fit_lockdown()
+
+fit_BE.compute_sir(.8, .006, '2020-10-31', Markov = False)
+fit_BE.plot_events()
+fit_BE.sir[0].plot(S = False)
+fit_BE.sir[0].ax.plot(fit_BE.sir[0].times, 1-fit_BE.sir[0].traj[:,0], label = '1-S')
+fit_BE.sir[0].ax.legend(loc='best')

@@ -262,7 +262,7 @@ class FitPatches(object):
             print('Probabilities of hospitalisation: ', self.probas['Hospital admissions'])
 #            print('relative probabilities: ', p_death/self.probas['Hospital admissions'])
             
-    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, two_step_measures = True):
+    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, two_step_measures = False):
         self.prepare_sir(p_reported, p_death, Markov, verbose, two_step_measures)
         
         self.intervals = np.zeros(np.size(self.names_fit))
@@ -359,7 +359,7 @@ class FitPatches(object):
         for event in self.events.values:
             labels.append('Predicted ' + event)
         fig.legend(tuple(data_lines + sir_lines), tuple(self.events) + tuple(labels), 
-                    loc = 'lower right', ncol = 2, fontsize = 12)
+                    loc = (.45, .1), ncol = 2, fontsize = 12)
         fig.set_tight_layout(True)
     
     def plot_deaths_hosp(self, logscale = True):
@@ -510,8 +510,9 @@ class FitPatches(object):
     linestyles = ['dashed', 'solid', 'dashdot']
     
     def plot_immunity(self, f_values, p_reported, end_date, logscale = False):
-        tick_interval = int(np.size(self.sir[0].times)/2)
         self.fig, self.axs = plt.subplots(1, self.n, dpi = self.dpi, figsize = (12, 4), sharey = True, sharex = True)
+        if self.n == 1:
+            self.axs = [self.axs]
         for i in np.arange(self.n):
             self.axs[i].set_title(self.names[i])
 #            self.axs[i].set_xlabel('Time (days since lockdown)')
@@ -527,8 +528,9 @@ class FitPatches(object):
                 self.axs[i].plot(sir.times-sir.lockdown_time, 1-sir.traj[:,0],
                         label = 'f = %.2f%%' % (100*f), 
                         linestyle = self.linestyles[np.mod(j, np.size(self.linestyles))])
-        self.axs[2].legend(loc = 'upper right', title = 'Infection fatality ratio')
+        self.axs[-1].legend(loc = 'upper right', title = 'Infection fatality ratio')
         
+        tick_interval = int(np.size(self.sir[0].times)/2)
         for (i, sir) in enumerate(self.sir):
             tick_times = (sir.times-sir.lockdown_time)[0::tick_interval]
             labels = self.time_to_date(tick_times)
