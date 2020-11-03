@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+python#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sat May 16 11:06:28 2020
@@ -265,7 +265,7 @@ class FitPatches(object):
     def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, two_step_measures = False):
         self.prepare_sir(p_reported, p_death, Markov, verbose, two_step_measures)
         
-        self.intervals = np.zeros(np.size(self.names_fit))
+        self.intervals = np.zeros(np.size(self.dates_of_change))
         for (j, d1) in enumerate(self.dates_of_change):
             d2 = np.concatenate((self.dates_of_change, [end_of_run]))[j+1]
             d1 = date.datetime.strptime(d1, self.date_format)
@@ -359,7 +359,7 @@ class FitPatches(object):
         for event in self.events.values:
             labels.append('Predicted ' + event)
         fig.legend(tuple(data_lines + sir_lines), tuple(self.events) + tuple(labels), 
-                    loc = (.45, .1), ncol = 2, fontsize = 12)
+                    loc = (.2, .8), ncol = 2, fontsize = 12)
         fig.set_tight_layout(True)
     
     def plot_deaths_hosp(self, logscale = True):

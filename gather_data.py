@@ -11,10 +11,11 @@ import numpy as np
 import os as os
 
 
-data_hosp_file = 'donnees-hospitalieres-covid19-2020-10-25-19h00_corrected.csv'
-data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-10-26-19h00.csv'
+data_hosp_file = 'donnees-hospitalieres-covid19-2020-11-01-19h00_corrected.csv'
+data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-11-01-19h00.csv'
 data_sos_file = 'sursaud-corona-quot-dep-2020-09-23-19h15_corrected.csv'
 
+data_age = 'donnees-hospitalieres-classe-age-covid19-2020-10-27-19h00.csv'
 
 columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
 
@@ -56,6 +57,8 @@ def correct_sos_data():
     print(np.sum(data_sos['dep'] == 40))
     
     data_sos.to_csv(data_sos_file, sep = ';')
+
+# def gather_age_data()
 
 def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
     if not os.path.isfile(data_hosp_file):
