@@ -1,4 +1,4 @@
-python#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sat May 16 11:06:28 2020
@@ -44,8 +44,8 @@ class FitPatches(object):
     # idem for post-lockdown fit
     delays_post = np.array([10, 15, 15])
     date_format = '%Y-%m-%d'
-    start_fit_init = '2020-03-19'
-    end_fit_init = '2020-03-26'
+    start_fit_init = '2020-03-01'
+    end_fit_init = '2020-03-22'
     
     date_first_measures_GE = '2020-03-07'
     r_GE = .27
@@ -84,7 +84,7 @@ class FitPatches(object):
             dates[i] = day.strftime(self.date_format)
         return dates
     
-    def fit_patches(self):
+    def fit_patches(self, reference_column = 'Hospital deaths'):
         self.fitters = []
         self.death_fitters = []
         self.r = np.zeros(self.n)
@@ -94,7 +94,7 @@ class FitPatches(object):
         for (i, n) in enumerate(self.names):
             print('Estimating growth rates in ' + n)
             self.fitters.append(MultiFitter(self.data[i]))
-            self.death_fitters.append(Fitter(self.data[i]['Hospital deaths'], self.lockdown_date, 0))
+            self.death_fitters.append(Fitter(self.data[i][reference_column], self.lockdown_date, 0))
             self.death_fitters[i].fit_init(self.start_fit_init, self.end_fit_init)
             self.r[i] = self.death_fitters[i].r
             self.deaths_at_lockdown[i] = self.death_fitters[i].deaths_at_lockdown()
@@ -107,7 +107,7 @@ class FitPatches(object):
             print('Growth rates ' + name, self.rE[j])
 #        print('Deaths at lockdown: ', self.deaths_at_lockdown)
     
-    def plot_fit_lockdown(self, display_legend = True):
+    def plot_fit_lockdown(self, display_legend = True, display_main_legend = True, francais = False):
         m = int(np.ceil(np.sqrt(self.n)))
         n = int(np.ceil(self.n/m))
         gs = gridspec.GridSpec(n, m)
@@ -122,26 +122,31 @@ class FitPatches(object):
             else:
                 self.axs.append(plt.subplot(gs[x, y], sharey = self.axs[-1]))
             self.axs[i].set_title(self.names[i])
-            data_lines = self.fitters[i].plot(self.axs[i])
+            data_lines = self.fitters[i].plot(self.axs[i], francais = francais)
             index_init = self.fitters[i].date_to_time(self.death_fitters[i].index_init)
+            if francais:
+                label = r'avant le confinement : $t_2$ = %.1f jours' % (np.log(2)/self.r[i])
+            else:
+                label = r'Before lockdown : $t_2$ = %.1f days' % (np.log(2)/self.r[i])
             self.axs[i].plot(index_init, self.death_fitters[i].best_fit_init_daily(),
-                    label = r'Before lockdown: $\rho$ = %.1e' % self.r[i], color = cm.autumn(0))
+                    label = label, color = self.colors[0])
             if display_legend:
-                self.axs[i].legend(loc = 'best')
+                self.axs[i].legend()
                 # reorder legend (dirty)
                 handles, labels = self.axs[i].get_legend_handles_labels()
                 order = np.concatenate(([-1], np.arange(np.size(labels)-1)))
                 handles = [handles[j] for j in order]
                 labels = [labels[j] for j in order]
-                self.axs[i].legend(handles, labels)
-        if display_legend:
-            fig.legend(data_lines, ['Daily hospital admissions', 'Daily hospital deaths', 'Daily ICU admissions', 'Daily SOS Medecins actions'], 
-                       loc = (.65, .25), fontsize = 13)
+                print(labels)
+                self.axs[i].legend(handles, labels, fontsize=13, loc = 'lower right')
+        if display_main_legend:
+            fig.legend(data_lines, self.fitters[0].columns, 
+                       loc = (.9, .01), fontsize = 13)
         fig.set_tight_layout(True)
         return fig
         
     def fit_delays(self):
-        delta = 35
+        delta = 40
         day_of_value = '2020-03-19'
         date_delta = (self.datetime_lockdown + date.timedelta(days = delta)).strftime(self.date_format)
         assert hasattr(self, 'fitters') and hasattr(self, 'sir')
@@ -159,24 +164,27 @@ class FitPatches(object):
             for (j, event) in enumerate(self.events):
                 cumul_first_day = self.data[i][event][day_of_value]
                 cumul_at_lockdown = cumul_first_day*np.exp(-self.r[i]*diff)
-                cumul_at_delta = fitter.fit_value_at(event, 'Lockdown', date_delta)
-                daily_at_delta = fitter.fit_value_at(event, 'Lockdown', date_delta, daily = True)
-                A = (cumul_at_delta - daily_at_delta/self.rE[0,i])/(K*cumul_at_lockdown)
-                B = A*cumul_at_lockdown*lambdaL*SIR_constants[0]*EIR[0]/daily_at_delta
+                first_fit = fitter.start.columns[0]
+                cumul_at_delta = fitter.fit_value_at(event, first_fit, date_delta)
+                daily_at_delta = fitter.fit_value_at(event, first_fit, date_delta, daily = True)
+                A = (K*cumul_at_lockdown)/(cumul_at_delta - daily_at_delta/self.rE[0,i])
+                B = A*daily_at_delta/(cumul_at_lockdown*lambdaL*SIR_constants[0]*EIR[0])
 #                print(A, B)
                 propose = [7, 2]
                 k, theta = propose
                 t = 0
-                while ((k == propose[0] and theta == propose[1]) or k <= 0 or theta <= 0) and t < 10:
+                while (k == propose[0] and theta == propose[1]) and t < 10:
                     propose = np.random.uniform(1, 10, 2)
                     k, theta = optim.fsolve(self._delay_err, propose, args = (A, B, self.r[i], self.rE[0,i]))
+                    k = np.abs(k)
+                    theta = np.abs(theta)
                     t += 1
 #                print((1+self.r[i]*theta)**k, (1+self.rE[0,i]*theta)**k, k, theta)
                 self.param_delays[self.names[i]][event] = [k, theta]
         
     def _delay_err(self, X, A, B, r, rE):
         k, theta = np.abs(X)
-        return [np.abs((1+r*theta)**k/A-1), np.abs((1+rE*theta)**k/B-1)]
+        return [np.abs((1+r*theta)**(-k)/A-1)**2, np.abs((1+rE*theta)**(-k)/B-1)**2]
     
     def _delay_transform_tsm(self, r, r_before, tau, delay_dist):
         I1 = np.sum(np.exp(-r*delay_dist[:,0])*(delay_dist[:,0] <= tau)*delay_dist[:,1])
@@ -191,42 +199,67 @@ class FitPatches(object):
                 p = self.param_delays[name][event]
                 self.delays_events.append(gamma_dist(p['k'], p['theta']))
     
-    def compute_proba(self, p_death, event, i):
-        at_date = '2020-03-19'
+    def compute_proba(self, p_death, event, i, reference_event = 'Hospital deaths'):
+        at_date = '2020-03-20'
         j = int(np.argwhere(self.events == event)[0])
-        k = int(np.argwhere(self.events == 'Hospital deaths')[0])
+        k = int(np.argwhere(self.events == reference_event)[0])
         m = np.size(self.events)
         delay_ratio = (Laplace(self.delays_events[i*m+k], -self.r[i])/
                        Laplace(self.delays_events[i*m+j], -self.r[i]))
         return p_death*(self.data[i][event][at_date]/
-                        self.data[i]['Hospital deaths'][at_date])*delay_ratio
+                        self.data[i][reference_event][at_date])*delay_ratio
     
-    def compute_proba_events(self, p_death):
+    def compute_proba_events(self, p_ref, ref_event = 'Hospital deaths'):
         self.probas = pd.DataFrame(columns = self.events, index = self.names)
-        self.probas['Hospital deaths'] = p_death*np.ones(self.n)
+        self.probas[ref_event] = p_ref*np.ones(self.n)
         for (j, event) in enumerate(self.events):
-            if event == 'Hospital deaths':
+            if event == ref_event:
                 continue
             self.probas[event] = np.zeros(self.n)
             for (i, name) in enumerate(self.names):
-                self.probas[event][name] = self.compute_proba(p_death, event, i)
+                self.probas[event][name] = self.compute_proba(p_ref, event, i, reference_event=ref_event)
                 assert self.probas[event][name] > 0 and self.probas[event][name] <= 1
         
     
-    def compute_p_hosp(self, p_death):
-        assert hasattr(self, 'delays_death') and hasattr(self, 'delays_hosp')
-        self.p_hosp = np.zeros(self.n)
-        for i in np.arange(self.n):
-            if True:
-                delay_ratio = Laplace(self.delays_death[i], -self.r[i])/Laplace(self.delays_hosp[i], -self.r[i])
-            else:
-                tau = self.sir[i].lockdown_time-self.sir[i].init_phase
-                delay_ratio = (self._delay_transform_tsm(self.r[i], self.r_GE, tau, self.delays_death[i])/
-                               self._delay_transform_tsm(self.r[i], self.r_GE, tau, self.delays_hosp[i]))
-            self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions']['2020-03-19']/
-                           self.data[i]['Hospital deaths']['2020-03-19'])*delay_ratio
+    # def compute_p_hosp(self, p_death):
+    #     assert hasattr(self, 'delays_death') and hasattr(self, 'delays_hosp')
+    #     self.p_hosp = np.zeros(self.n)
+    #     for i in np.arange(self.n):
+    #         if True:
+    #             delay_ratio = Laplace(self.delays_death[i], -self.r[i])/Laplace(self.delays_hosp[i], -self.r[i])
+    #         else:
+    #             tau = self.sir[i].lockdown_time-self.sir[i].init_phase
+    #             delay_ratio = (self._delay_transform_tsm(self.r[i], self.r_GE, tau, self.delays_death[i])/
+    #                            self._delay_transform_tsm(self.r[i], self.r_GE, tau, self.delays_hosp[i]))
+    #         self.p_hosp[i] = p_death*(self.data[i]['Hospital admissions']['2020-03-19']/
+    #                        self.data[i]['Hospital deaths']['2020-03-19'])*delay_ratio
     
-    def prepare_sir(self, p_reported, p_death, Markov = False, verbose = True, two_step_measures = False):
+    def Laplace_event(self, patch, event, rho):
+        return (1+self.param_delays[patch][event]['theta']*rho)**(-self.param_delays[patch][event]['k'])
+    
+    def adjust_dates_of_change(self, fit, event):
+        j = self.names_fit.index(fit)
+        assert j>0, 'Cannot adjust date of change for the first fit.'
+        previous_fit = self.names_fit[j-1]
+        date1 = self.dates_of_change[j-1]
+        datetime1 = date.datetime.strptime(date1, self.date_format)
+        date2 = self.dates_of_change[j]
+        datetime2 = date.datetime.strptime(date2, self.date_format)
+        t1tot2 = (datetime2-datetime1).days
+        if not hasattr(self, 'adjusted_dates_of_change'):
+            self.adjusted_dates_of_change = pd.DataFrame(index = self.names_fit)
+            for (i, name) in enumerate(self.names):
+                self.adjusted_dates_of_change[name] = self.dates_of_change
+        for (i, name) in enumerate(self.names):
+            rho1 = self.fitters[i].rates[previous_fit]
+            R1 = self.fitters[i].fit_value_at(event, previous_fit, date1, daily = True)/self.Laplace_event(name, event, rho1)
+            rho2 = self.fitters[i].rates[fit]
+            R2 = self.fitters[i].fit_value_at(event, fit, date2, daily = True)/self.Laplace_event(name, event, rho2)
+            t1totc = (rho2*t1tot2 + np.log(R1/R2))/(rho2-rho1)
+            datetime_tc = datetime1 + date.timedelta(days = t1totc)
+            self.adjusted_dates_of_change[name][fit] = datetime_tc.strftime(self.date_format)
+    
+    def prepare_sir(self, p_reported, p_ref, ref_event = 'Hospital deaths', Markov = False, verbose = True, two_step_measures = False):
         EI_dist = EI_dist_covid(p_reported)
         self.sir = []
         if Markov:
@@ -246,7 +279,7 @@ class FitPatches(object):
                                                date_of_measures = self.date_first_measures_GE))
         self.fit_delays()
         self.build_delays()
-        self.compute_proba_events(p_death)
+        self.compute_proba_events(p_ref, ref_event)
 #        self.delays_hosp = []
 #        self.delays_icu = []
 #        self.delays_death = []
@@ -259,24 +292,33 @@ class FitPatches(object):
             for (i, name) in enumerate(self.names):
                 for (j, event) in enumerate(self.events):
                     print('Mean infection to ' + event + ' delay in ' + name + ': ', np.prod(self.param_delays[name][event].values))
-            print('Probabilities of hospitalisation: ', self.probas['Hospital admissions'])
+            # print('Probabilities of hospitalisation: ', self.probas['Hospital admissions'])
 #            print('relative probabilities: ', p_death/self.probas['Hospital admissions'])
-            
-    def compute_sir(self, p_reported, p_death, end_of_run, Markov = False, verbose = True, two_step_measures = False):
-        self.prepare_sir(p_reported, p_death, Markov, verbose, two_step_measures)
-        
-        self.intervals = np.zeros(np.size(self.dates_of_change))
-        for (j, d1) in enumerate(self.dates_of_change):
-            d2 = np.concatenate((self.dates_of_change, [end_of_run]))[j+1]
+
+    def compute_intervals(self, dates_of_change, end_of_run):
+        intervals = np.zeros(np.size(dates_of_change))
+        for (j, d1) in enumerate(dates_of_change):
+            d2 = np.concatenate((dates_of_change, [end_of_run]))[j+1]
             d1 = date.datetime.strptime(d1, self.date_format)
             d2 = date.datetime.strptime(d2, self.date_format)
-            self.intervals[j] = np.maximum((d2-d1).days, 0)
+            intervals[j] = np.maximum((d2-d1).days, 0)
+        return intervals
+            
+    def compute_sir(self, p_reported, p_ref, end_of_run, ref_event = 'Hospital deaths', Markov = False, verbose = True, two_step_measures = False):
+        if not hasattr(self, 'param_delays'):
+            self.prepare_sir(p_reported, p_ref, ref_event, Markov, verbose, two_step_measures)
+        
         m = np.size(self.events)
-        k = int(np.argwhere(self.events == 'Hospital deaths')[0])
+        assert ref_event in self.events
+        k = int(np.argwhere(self.events == ref_event)[0])
         for (i, sir) in enumerate(self.sir):
             if verbose:
                 print('Running SEIR model in ' + self.names[i])
-            sir.calibrate(self.deaths_at_lockdown[i], p_death, self.delays_events[i*m+k])
+            if hasattr(self, 'adjusted_dates_of_change'):
+                intervals = self.compute_intervals(self.adjusted_dates_of_change[self.names[i]], end_of_run)
+            else:
+                intervals = self.compute_intervals(self.dates_of_change, end_of_run)
+            sir.calibrate(self.deaths_at_lockdown[i], p_ref, self.delays_events[i*m+k])
             sir.run_up_to_lockdown(verbose = verbose)
             for (j, name) in enumerate(self.names_fit):
                 if name == 'Before lockdown':
@@ -284,7 +326,7 @@ class FitPatches(object):
                 if verbose:
                     print(name)
                 sir.change_contact_rate(self.rE[j,i], verbose = verbose)
-                sir.run(self.intervals[j], record = True)
+                sir.run(intervals[j], record = True)
             for (j, event) in enumerate(self.events):
                 sir.compute_delayed_event(self.probas[event][self.names[i]],
                                            self.delays_events[i*m+j], event)
@@ -317,7 +359,7 @@ class FitPatches(object):
         fig.set_tight_layout(True)
         
     def plot_events(self, daily = True, logscale = True):
-        tick_interval = int(np.size(self.sir[0].times)/4)
+        tick_interval = int(np.size(self.sir[0].times)/8)
         print(tick_interval)
         m = int(np.ceil(np.sqrt(self.n)))
         n = int(np.ceil(self.n/m))
@@ -328,10 +370,7 @@ class FitPatches(object):
         for (i, sir) in enumerate(self.sir):
             x = np.floor_divide(i, m)
             y = np.mod(i, m)
-            if i == 0:
-                self.axs.append(plt.subplot(gs[x, y]))
-            else:
-                self.axs.append(plt.subplot(gs[x, y]))
+            self.axs.append(plt.subplot(gs[x, y]))
             self.axs[i].set_title(self.names[i])
             self.axs[i].grid(True)
             if logscale:
@@ -357,9 +396,9 @@ class FitPatches(object):
             self.axs[i].set_xticklabels(labels)
         labels = []
         for event in self.events.values:
-            labels.append('Predicted ' + event)
+            labels.append('Prédictions')
         fig.legend(tuple(data_lines + sir_lines), tuple(self.events) + tuple(labels), 
-                    loc = (.2, .8), ncol = 2, fontsize = 12)
+                    loc = (.1, .75), ncol = 2, fontsize = 12)
         fig.set_tight_layout(True)
     
     def plot_deaths_hosp(self, logscale = True):

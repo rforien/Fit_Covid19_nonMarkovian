@@ -41,7 +41,7 @@ class MultiFitter(object):
         self.rates = pd.Series(dtype = float)
         self.ref_datetime = date.datetime.strptime(self.reference_date, self.date_format)
     
-    def fit(self, start, end, delays, fit_key, columns = None):
+    def fit(self, start, end, delays, fit_key, columns = None, initial_phase = False):
         assert end in self.cumul.index
         if columns == None:
             columns = np.array(self.columns)
@@ -61,7 +61,10 @@ class MultiFitter(object):
         self.end_value[fit_key] = ''
         start_date = date.datetime.strptime(start, self.date_format)
         end_date = date.datetime.strptime(end, self.date_format)
-        init_params = np.concatenate((np.ones(2*m), [-.01]))
+        if initial_phase:
+            init_params = np.concatenate((np.ones(m), [.01]))
+        else:
+            init_params = np.concatenate((np.ones(2*m), [-.01]))
         for (i, col) in enumerate(self.columns):
             if not self.in_fit[fit_key][col]:
                 continue
@@ -72,8 +75,10 @@ class MultiFitter(object):
             assert self.start[fit_key][col] in self.cumul.index
             self.length[fit_key][col] = (end_date-d).days+1
             init_params[j] = self.cumul[col][self.start[fit_key][col]]
-            init_params[m+j] = self.cumul[col][self.end[fit_key][col]]
-        result = optim.minimize(self._error, init_params, args = (fit_key, columns), 
+            if not initial_phase:
+                init_params[m+j] = self.cumul[col][self.end[fit_key][col]]
+        result = optim.minimize(self._error, init_params, 
+                                args = (fit_key, columns, initial_phase), 
                                 method = 'Nelder-Mead')
         # record result
         self.start_value[fit_key] = ''
@@ -83,13 +88,17 @@ class MultiFitter(object):
                 continue
             j = np.where(columns == col)[0][0]
             self.start_value[fit_key][col] = result.x[j]
-            self.end_value[fit_key][col] = result.x[m+j]
+            if initial_phase:
+                self.end_value[fit_key][col] = result.x[j]*np.exp(result.x[-1]*self.length[fit_key][col])
+            else:
+                self.end_value[fit_key][col] = result.x[m+j]
         # print(result.x[-1])
         self.rates[fit_key] = result.x[-1]
         
-    def _error(self, params, fit_key, columns):
+    def _error(self, params, fit_key, columns, init_phase = False):
         E = 0
-        m = int((np.size(params)-1)/2)
+        if not init_phase:
+            m = int((np.size(params)-1)/2)
         for (i, col) in enumerate(self.columns):
             if not self.in_fit[fit_key][col]:
                 continue
@@ -97,8 +106,12 @@ class MultiFitter(object):
             x = self.cumul[col][self.start[fit_key][col]:self.end[fit_key][col]].values
             t = self.date_to_time(self.cumul[self.start[fit_key][col]:self.end[fit_key][col]].index)
             t = t-self.date_to_time([self.start[fit_key][col]])[0]
-            y = self.exp_fit(params[j], params[m+j], params[-1], 
-                             self.length[fit_key][col], t)
+            if init_phase:
+                end = params[j]*np.exp(params[-1]*t[-1])
+            else:
+                end = params[m+j]
+            y = self.exp_fit(params[j], end, params[-1], 
+                                 self.length[fit_key][col], t)
             E += np.sum(np.abs(1-y/x)**2)
         return E
     
@@ -130,9 +143,9 @@ class MultiFitter(object):
             time[i] = (day-self.ref_datetime).days
         return time
     
-    def plot(self, axes = None, fits = None):
+    def plot(self, axes = None, fits = None, francais = False):
         tick_interval = int((self.date_to_time([self.cumul.index[-1]])-
-                             self.date_to_time([self.cumul.index[0]]))/4)
+                             self.date_to_time([self.cumul.index[0]]))/7)
         if axes == None:
             plt.figure(dpi = self.dpi)
             axes = plt.axes()
@@ -141,8 +154,12 @@ class MultiFitter(object):
         else:
             for fit in fits:
                 assert fit in self.start.columns
+        if francais:
+            days = ' jours'
+        else:
+            days = ' days'
         data_lines = []
-        color_keys = (np.argsort(np.argsort(self.rates.values))/(np.size(self.rates)))[::-1]
+        color_keys = .95-(np.argsort(np.argsort(self.rates.values))/(np.size(self.rates)))
         for (i, col) in enumerate(self.columns):
             line, = axes.plot(self.date_to_time(self.daily[col].index), self.daily[col].values, 
                       linestyle = 'dashed', color = self.colors[i])
@@ -158,9 +175,12 @@ class MultiFitter(object):
                                             self.end_value[fit][col],
                                             self.rates[fit], self.length[fit][col],
                                             t)
-                line, = axes.plot(index, values, color = cm.autumn(color_keys[j]))
+                line, = axes.plot(index, values, linewidth = 1.8, color = cm.nipy_spectral(color_keys[j]))
                 if k == 0:
-                    line.set_label(fit + r': $\rho$ = %.1e' % self.rates[fit])
+                    if self.rates[fit] > 0:
+                        line.set_label(fit + r': $t_2$ = %.1f' % (np.log(2)/self.rates[fit]) + days)
+                    else:
+                        line.set_label(fit + r': $t_{1/2}$ = %.1f' % (-np.log(2)/self.rates[fit]) + days)
                     k += 1
         axes.set_yscale('log')
         axes.legend(loc = 'best')

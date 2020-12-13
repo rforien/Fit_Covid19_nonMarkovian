@@ -150,6 +150,12 @@ class SIR_lockdown(SIR):
         assert R0 > 0
         return R0*self.g**-1
     
+    def R0(self):
+        return self.l*self.g
+    
+    def R0_eff(self):
+        return self.R0()*self.Z[0]
+    
     def change_contact_rate(self, growth_rate, adjust_S = True, verbose = False):
         if adjust_S:
             z = self.Z[0]
@@ -157,7 +163,7 @@ class SIR_lockdown(SIR):
             z = 1
         self.l = self.contact_rate(growth_rate)/z
         if verbose:
-            print('R_0 = %.3f' % self.R0())
+            print('R_0 = %.3f, R0_eff = %.3f' % (self.R0(), self.R0_eff()))
     
     def calibrate(self, deaths_lockdown, infection_fatality_ratio, delay_dist, I0 = 1):
         assert I0 > 0 and deaths_lockdown > 0
@@ -191,10 +197,10 @@ class SIR_lockdown(SIR):
         return np.argmax(self.times > delay)-1
     
     def lockdown_constants(self, growth_rate_lockdown, delta):
-        self.forget()
-        self.calibrate(10, .1, np.array([[0, 1]]))
+        self.calibrate(1, .1, np.array([[0, 1]]))
         self.run_up_to_lockdown(verbose = False)
         Z_lockdown = self.Z
+        # print('S at lockdown while fitting delays: ', self.Z[0])
         self.change_contact_rate(growth_rate_lockdown, adjust_S = False)
         self.run(delta, record = True)
 #        self.plot(S = False)
@@ -203,6 +209,7 @@ class SIR_lockdown(SIR):
     
     def run_up_to_lockdown(self, verbose = True):
         assert hasattr(self, 'lockdown_time')
+        self.forget()
         if not self.two_step_measures:
             if verbose:
                 print('R0 prior to lockdown: %.2f' % self.R0())

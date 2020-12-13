@@ -14,3 +14,4 @@ from .dist import *
 from .fitter import *
 from .sir import *
 from .fit_patches import *
+from .lockdown_fitter import *

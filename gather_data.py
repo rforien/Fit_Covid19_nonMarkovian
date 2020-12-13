@@ -11,8 +11,8 @@ import numpy as np
 import os as os
 
 
-data_hosp_file = 'donnees-hospitalieres-covid19-2020-11-01-19h00_corrected.csv'
-data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-11-01-19h00.csv'
+data_hosp_file = 'donnees-hospitalieres-covid19-2020-12-08-19h03_corrected.csv'
+data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-12-08-19h03.csv'
 data_sos_file = 'sursaud-corona-quot-dep-2020-09-23-19h15_corrected.csv'
 
 data_age = 'donnees-hospitalieres-classe-age-covid19-2020-10-27-19h00.csv'
@@ -75,6 +75,7 @@ def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
     
     if include_early:
         deaths_early = pd.read_csv('deces_france_0101-1404.csv', index_col = 'jour')
+        # deaths_early.columns = ['0']
     
     # forget sex
     data_hosp = data_hosp[data_hosp['sexe'] == 0]
@@ -99,6 +100,7 @@ def gather_data(patches, include_early = False, index = 0, SOS_medecins = True):
     for (i, patch) in enumerate(patches):
         deaths_patch = deaths[patch].sum(axis = 1)
         if include_early and i == index:
+            deaths_patch = pd.DataFrame(deaths_patch, columns = ['deces'])
             deaths_patch = pd.concat((deaths_early['2020-02-15':'2020-03-17'], deaths_patch), axis = 0)
         admis_patch = admissions[patch].sum(axis = 1)
         rea_patch = rea[patch].sum(axis = 1)
