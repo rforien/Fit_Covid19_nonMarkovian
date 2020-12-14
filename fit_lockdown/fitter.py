@@ -143,9 +143,10 @@ class MultiFitter(object):
             time[i] = (day-self.ref_datetime).days
         return time
     
-    def plot(self, axes = None, fits = None, francais = False):
+    def plot(self, axes = None, fits = None, francais = False, nb_xticks = 5):
+        assert nb_xticks > 0
         tick_interval = int((self.date_to_time([self.cumul.index[-1]])-
-                             self.date_to_time([self.cumul.index[0]]))/7)
+                             self.date_to_time([self.cumul.index[0]]))/nb_xticks)
         if axes == None:
             plt.figure(dpi = self.dpi)
             axes = plt.axes()

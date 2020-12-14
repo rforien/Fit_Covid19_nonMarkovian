@@ -239,8 +239,9 @@ class SIR_lockdown(SIR):
         assert is_dist(delay_dist) and np.min(delay_dist[:,0]) >= 0
         if not hasattr(self, 'cumul'):
             self.cumul = pd.DataFrame(index = self.times)
+        if not hasattr(self, 'daily'):
             self.daily = pd.DataFrame(index = self.times)
-        self.cumul[name] = np.zeros(np.size(self.times))
+        self.cumul[name] = pd.Series(np.zeros(np.size(self.times)))
         for (delay, p) in delay_dist:
             if delay >= np.max(self.times):
                 continue
@@ -248,6 +249,13 @@ class SIR_lockdown(SIR):
             time_range = np.arange(i,np.size(self.times))
             self.cumul[name].values[time_range] += ratio*self.N*p*(1-self.traj[time_range-i,0])
         self.daily[name] = np.concatenate(([0], np.diff(self.cumul[name].values)/np.diff(self.times)))
+    
+    def forget(self):
+        super().forget()
+        if hasattr(self, 'cumul'):
+            del self.cumul
+        if hasattr(self, 'daily'):
+            del self.daily
     
     def plot_event(self, name, daily = False, axes = None, labels = True, color = None,
                    linewidth = None):

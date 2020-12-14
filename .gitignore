@@ -3,6 +3,7 @@
 *.xcf
 *.pyc
 .spyproject*
+*.csv
 
 calcul_EI0.xoj
 28,000*

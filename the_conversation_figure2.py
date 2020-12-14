@@ -16,6 +16,10 @@ import fit_lockdown as lockdown
 
 region_list = [['Île de France'], ['Grand Est'], ['Nouvelle Aquitaine'], ["Provence-Alpes-Côte d’Azur"]]
 names = ['Île de France', 'Grand Est', 'Nouvelle Aquitaine', "Provence-Alpes-Côte d’Azur"]
+idf = 0
+gdest = 1
+nvaq = 2
+paca = 3
 
 patches, sizes = patches.patches_from_region_list(region_list)
 
@@ -30,68 +34,94 @@ admissions = 'Admissions à l\'hôpital liées au Covid-19'
 for i in range(len(names)):
     data_patches[i].columns = [admissions, deces, 'Admissions en réanimation']
 
-fit_total = lockdown.FitPatches(data_patches, names, sizes)
+patches = []
+for (i, name) in enumerate(names):
+    data_patches[i] = data_patches[i].drop(data_patches[i]['2020-11-01':].index)
+    patches.append(lockdown.LockdownFitter(data_patches[i], name, sizes[i], '2020-03-16'))
 
-## sans second confinement
-fit_total.dates_of_change = ['2020-03-16', '2020-06-02', '2020-07-10', '2020-09-01']
-fit_total.start_fit_init = '2020-03-19'
-fit_total.end_fit_init = '2020-03-26'
-fit_total.dates_end_fit = ['2020-06-10', '2020-07-29', '2020-09-12', '2020-10-30']
-fit_total.names_fit = ['confinement', 'après le 2 juin', 'été', 'deuxieme vague']
-fit_total.delays = np.array([[18, 28, 28], [10,15], [18, 21, 21], [10, 15, 15]])
-fit_total.fit_columns = [None, [admissions, deces], None, None] # None means all columns
+for patch in patches:
+    patch.setup_fit('avant le confinement', '2020-03-01', '2020-03-25', [17], columns = [deces])
+    patch.setup_fit('confinement', '2020-03-16', '2020-06-02', [18, 28, 28])
+    
+## Setup fits in Ile de France
+patches[idf].setup_fit('été', '2020-06-02', '2020-09-10', [18, 25, 25])
+patches[idf].setup_fit('deuxième vague', '2020-09-01', '2020-10-30', [10, 15, 15])
 
-fit_total.fit_patches(reference_column = deces)
+## Setup fits in Grand Est
+patches[gdest].setup_fit('déconfinement', '2020-05-15', '2020-07-01', [15, 20, 20])
+patches[gdest].setup_fit('été', '2020-07-01', '2020-09-20', [15, 20, 20])
+patches[gdest].setup_fit('deuxième vague', '2020-09-01', '2020-10-30', [10, 15, 15])
 
-fit_total.plot_fit_lockdown(francais = francais)
+## Setup fits in Nouvelle Aquitaine
+# patches[nvaq].setup_fit('déconfinement', '2020-06-02', '2020-08-01', [10], columns = [admissions])
+patches[nvaq].setup_fit('deuxième vague', '2020-07-25', '2020-10-30', [15, 20, 28])
 
-deaths = []
-times = []
-for i in range(fit_total.n):
-    deaths.append(pd.DataFrame())
-    times.append(pd.DataFrame())
+## Setup fits in PACA
+patches[paca].setup_fit('deuxième vague', '2020-07-01', '2020-10-30', [15, 28, 20])
 
-ifrs = [0.003, 0.005, 0.01]
+for patch in patches:
+    patch.compute_growth_rates()
+
+fig, axes = plt.subplots(2,2, dpi = 200, figsize=(12,9))
+for i in range(2):
+    for j in range(2):
+        patches[2*i+j].plot_fit(axs = axes[i,j], francais = True, nb_xticks = 4)
+fig.set_tight_layout(True)
+    
+# ifrs = [0.003, 0.005, 0.01]
+ifrs = [.003, .005]
+EI_dist = lockdown.EI_dist_covid(0.8)
+
+deaths = pd.DataFrame()
+times = pd.DataFrame()
+
 for f in ifrs:
-    fit_total.prepare_sir(.8, f, ref_event = deces)
-    fit_total.adjust_dates_of_change('été', admissions)
-    fit_total.adjust_dates_of_change('deuxieme vague', admissions)
-    fit_total.compute_sir(.8, f, '2021-03-31', ref_event = deces)
-    
-    for (j, sir) in enumerate(fit_total.sir):
-        deaths[j][str(f)] = pd.Series(sir.daily[deces])
-        times[j][str(f)] = pd.Series(sir.times-sir.lockdown_time)
+    for patch in patches:
+        if not hasattr(patch, 'sir'):
+            patch.prepare_sir(EI_dist, f, ref_event = deces)
+        else:
+            patch.sir.forget()
+            patch.compute_probas(f, ref_event = deces)
+        for (i, fit) in enumerate(patch.fits):
+            if i <= 1:
+                continue
+            if fit.name == 'deuxième vague' and patch.name == 'Grand Est':
+                patch.adjust_date_of_change(fit.name, deces)
+            else:
+                patch.adjust_date_of_change(fit.name, admissions)
+        patch.compute_sir(EI_dist, f, '2020-02-27', ref_event = deces)
+        
+        deaths[patch.name + str(f)] = pd.Series(patch.sir.daily[deces])
+        times[patch.name + str(f)] = pd.Series(patch.sir.times-patch.sir.lockdown_time)
     
 
-    
-fig, axs = plt.subplots(2,2, dpi = 200, figsize=(12,6))
 
-for (j, patch) in enumerate(fit_total.names):
-    k = np.mod(j, 2)
-    i = int(np.floor(j/2))
-    dates = fit_total.fitters[j].daily.index
-    timesindex = fit_total.index_to_time(dates)
-    axs[i,k].set_title(patch)
-    axs[i,k].grid(True)
-    axs[i,k].plot(timesindex, fit_total.fitters[j].daily[deces].values, linestyle ='dashed')
-    for f in ifrs:
-        axs[i,k].plot(times[j][str(f)].values, deaths[j][str(f)].values)
-    start = np.min(np.min(times[j]))
-    end = np.max(np.max(times[j]))
-    ticks = np.linspace(start, end, 5)
-    dates = fit_total.time_to_date(ticks)
-    axs[i,k].set_xticks(ticks)
-    axs[i,k].set_xticklabels(dates)
+fig, axs = plt.subplots(2,2, dpi = 200, figsize=(12,9))
+for i in range(2):
+    for j in range(2):
+        patch = patches[2*i+j]
+        dates = patch.fitter.daily.index
+        timesindex = patch.date_to_time(dates)
+        axs[i,j].set_title(patch.name)
+        axs[i,j].grid(True)
+        axs[i,j].plot(timesindex, patch.fitter.daily[deces].values, linestyle ='dashed')
+        for f in ifrs:
+            axs[i,j].plot(times[patch.name + str(f)].values, 
+                          deaths[patch.name + str(f)].values, label = "IFR = %.1f%%" % (100*f))
+        start = np.min(np.min(times[patch.name + str(ifrs[0])]))
+        end = np.max(np.max(times[patch.name + str(ifrs[0])]))
+        ticks = np.linspace(start, end, 5)
+        tick_dates = patch.time_to_date(ticks)
+        axs[i,j].set_xticks(ticks)
+        axs[i,j].set_xticklabels(tick_dates)
 
+axs[0,0].legend(loc='best')
 fig.set_tight_layout(True)
 
+# deaths = []
+# times = []
+# for i in range(fit_total.n):
+#     deaths.append(pd.DataFrame())
+#     times.append(pd.DataFrame())
 
 
-# fit_total.prepare_sir(.8, .005, ref_event = deces)
-# fit_total.adjust_dates_of_change('été', admissions)
-# fit_total.adjust_dates_of_change('deuxieme vague', admissions)
-
-# fit_total.compute_sir(.8, .005, '2021-03-31', ref_event = deces)
-
-# fit_total.plot_events(logscale=False)
-# fit_total.axs[0].set_title("Projection de l'évolution de l'épidémie sans le second confinement")

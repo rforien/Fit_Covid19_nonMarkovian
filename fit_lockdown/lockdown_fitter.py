@@ -104,14 +104,15 @@ class LockdownFitter(object):
             print('Growth rates in ' + self.name)
             print(self.rates)
     
-    def plot_fit(self, axs = None, francais = False):
+    def plot_fit(self, axs = None, francais = False, nb_xticks = 5):
         if not axs:
             fig = plt.figure(dpi = self.dpi)
             self.axs = plt.axes()
         else:
             self.axs = axs
+            fig = None
         self.axs.set_title(self.name)
-        data_lines = self.fitter.plot(self.axs, francais = francais)
+        data_lines = self.fitter.plot(self.axs, francais = francais, nb_xticks = nb_xticks)
         self.axs.legend(loc='best')
         if fig:
             fig.set_tight_layout(True)
@@ -276,9 +277,9 @@ class LockdownFitter(object):
         if fig:
             fig.set_tight_layout(True)
     
-    def plot_events(self, daily = True, logscale = False, nb_dates = 8, axs = None):
-        assert nb_dates > 0
-        tick_interval = int(np.size(self.sir.times)/nb_dates)
+    def plot_events(self, daily = True, logscale = False, nb_xticks = 8, axs = None):
+        assert nb_xticks > 0
+        tick_interval = int(np.size(self.sir.times)/nb_xticks)
         if not axs:
             fig = plt.figure(dpi = self.dpi)
             self.axs = plt.axes()

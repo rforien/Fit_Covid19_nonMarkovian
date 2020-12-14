@@ -11,8 +11,8 @@ import numpy as np
 import os as os
 
 
-data_hosp_file = 'donnees-hospitalieres-covid19-2020-12-08-19h03_corrected.csv'
-data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-12-08-19h03.csv'
+data_hosp_file = 'donnees-hospitalieres-covid19-2020-12-13-19h03_corrected.csv'
+data_hosp_daily_file = 'donnees-hospitalieres-nouveaux-covid19-2020-12-13-19h03.csv'
 data_sos_file = 'sursaud-corona-quot-dep-2020-09-23-19h15_corrected.csv'
 
 data_age = 'donnees-hospitalieres-classe-age-covid19-2020-10-27-19h00.csv'
