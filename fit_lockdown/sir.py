@@ -241,7 +241,7 @@ class SIR_lockdown(SIR):
             self.cumul = pd.DataFrame(index = self.times)
         if not hasattr(self, 'daily'):
             self.daily = pd.DataFrame(index = self.times)
-        self.cumul[name] = pd.Series(np.zeros(np.size(self.times)))
+        self.cumul[name] = np.zeros(np.size(self.times))
         for (delay, p) in delay_dist:
             if delay >= np.max(self.times):
                 continue
