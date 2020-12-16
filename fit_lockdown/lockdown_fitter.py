@@ -216,10 +216,13 @@ class LockdownFitter(object):
     
     def compute_intervals(self, dates_of_change, end_of_run):
         intervals = np.zeros(np.size(dates_of_change))
+        date_end = date.datetime.strftime(end_of_run, self.date_format)
         for (j, d1) in enumerate(dates_of_change):
             d2 = np.concatenate((dates_of_change, [end_of_run]))[j+1]
-            d1 = date.datetime.strptime(d1, self.date_format)
             d2 = date.datetime.strptime(d2, self.date_format)
+            if (d2-date_end).days <= 0:
+                d2 = date_end
+            d1 = date.datetime.strptime(d1, self.date_format)
             intervals[j] = np.maximum((d2-d1).days, 0)
         return intervals
     

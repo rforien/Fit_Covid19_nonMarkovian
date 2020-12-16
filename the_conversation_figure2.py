@@ -68,20 +68,23 @@ for i in range(2):
         patches[2*i+j].plot_fit(axs = axes[i,j], francais = True, nb_xticks = 4)
 fig.set_tight_layout(True)
     
-# ifrs = [0.003, 0.005, 0.01]
-ifrs = [.003, .005]
+ifrs = [0.003, 0.005, 0.01]
+#ifrs = [.003, 0.005]
 EI_dist = lockdown.EI_dist_covid(0.8)
 
 deaths = pd.DataFrame()
 times = pd.DataFrame()
 
+
 for f in ifrs:
     for patch in patches:
+        print(f)
         if not hasattr(patch, 'sir'):
             patch.prepare_sir(EI_dist, f, ref_event = deces)
         else:
             patch.sir.forget()
             patch.compute_probas(f, ref_event = deces)
+#        patch.prepare_sir(EI_dist, f, ref_event = deces)
         for (i, fit) in enumerate(patch.fits):
             if i <= 1:
                 continue
@@ -89,14 +92,14 @@ for f in ifrs:
                 patch.adjust_date_of_change(fit.name, deces)
             else:
                 patch.adjust_date_of_change(fit.name, admissions)
-        patch.compute_sir(EI_dist, f, '2020-02-27', ref_event = deces)
+        patch.compute_sir(EI_dist, f, '2021-03-31', ref_event = deces)
         
         deaths[patch.name + str(f)] = pd.Series(patch.sir.daily[deces])
         times[patch.name + str(f)] = pd.Series(patch.sir.times-patch.sir.lockdown_time)
     
 
 
-fig, axs = plt.subplots(2,2, dpi = 200, figsize=(12,9))
+fig, axs = plt.subplots(2,2, dpi = 100, figsize=(12,9))
 for i in range(2):
     for j in range(2):
         patch = patches[2*i+j]
@@ -107,7 +110,7 @@ for i in range(2):
         axs[i,j].plot(timesindex, patch.fitter.daily[deces].values, linestyle ='dashed')
         for f in ifrs:
             axs[i,j].plot(times[patch.name + str(f)].values, 
-                          deaths[patch.name + str(f)].values, label = "IFR = %.1f%%" % (100*f))
+                          deaths[patch.name + str(f)].values, label = "taux de létalité : %.1f%%" % (100*f))
         start = np.min(np.min(times[patch.name + str(ifrs[0])]))
         end = np.max(np.max(times[patch.name + str(ifrs[0])]))
         ticks = np.linspace(start, end, 5)
@@ -116,6 +119,7 @@ for i in range(2):
         axs[i,j].set_xticklabels(tick_dates)
 
 axs[0,0].legend(loc='best')
+fig.suptitle('Décès hospitaliers dus au Covid-19 sans le second confinement')
 fig.set_tight_layout(True)
 
 # deaths = []
