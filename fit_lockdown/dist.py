@@ -84,6 +84,16 @@ def EI_dist_covid(p_reported, fixed_E = False, n = 10):
              [1, 1-p_reported]*([8, 0] + [4, 1]*beta_dist(2, 2, n))), axis = 0)
     return product_dist(E_dist, I_dist)
 
+def EI_dist(E_period, p_reported, max_I_period, n = 10):
+    var_E = min(E_period, 2)
+    var_I = min(max_I_period, 4)
+    E_dist = [E_period-.5*var_E, 0] + [var_E, 1]*beta_dist(2, 2, n)
+    I_dist_short = [3, 0] + beta_dist(2, 2, n)
+    I_dist_long = [max_I_period-.5*var_I, 0] + [var_I, 1]*beta_dist(2,2,n)
+    I_dist = np.concatenate(([1, p_reported]*I_dist_short, 
+                             [1, 1-p_reported]*I_dist_long), axis = 0)
+    return E_dist, I_dist
+
 def delay_hosp_covid(n = 20):
     return [7, 0] + [10, 1]*beta_dist(1.5, 1.2, n)
 
