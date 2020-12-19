@@ -90,14 +90,20 @@ class LockdownFitter(object):
             assert np.size(delays) == np.size(self.events)
         if self.fits:
             assert diff(self.fits[-1].start, start) >= 0, "Trying to setup a fit before the last one."
+        if len(self.fits)==1:
+            datetime_start = date.datetime.strptime(start, self.date_format)
+            if (self.datetime_lockdown-datetime_start).days != 0:
+                print("Warning: second fit should start at the date of lockdown, otherwise things might go wrong later.")
         self.fits.append(Fit(name, start, end, delays, columns))
     
     def compute_growth_rates(self, verbose = False):
-        print('Estimating growth rates in ' + self.name + '...')
+        if verbose:
+            print('Estimating growth rates in ' + self.name + '...')
         self.fitter = fit_lockdown.MultiFitter(self.data)
         assert len(self.fits) >= 2, "At least to fits are needed."
         for (i, fit) in enumerate(self.fits):
-            print(fit.name)
+            if verbose:
+                print(fit.name)
             self.fitter.fit(fit.start, fit.end, fit.delays, fit.name, fit.columns, initial_phase=(i==0))
         self.rates = self.fitter.rates
         if verbose:
@@ -233,7 +239,7 @@ class LockdownFitter(object):
             p = self.param_delays[event]
             self.delays[event] = fit_lockdown.gamma_dist(p['k'], p['theta'])
     
-    def compute_sir(self, EI_dist, p_ref, end_of_run, ref_event = 'Hospital deaths', verbose = True, compute_events = True):
+    def compute_sir(self, EI_dist, p_ref, end_of_run, ref_event = 'Hospital deaths', verbose = True, compute_events = True, events = None):
         if not hasattr(self, 'param_delays') or not hasattr(self, 'sir') or not hasattr(self, 'probas'):
             self.prepare_sir(EI_dist, p_ref, ref_event, verbose)
         assert ref_event in self.events
@@ -254,7 +260,11 @@ class LockdownFitter(object):
             self.sir.change_contact_rate(self.rates[key], verbose = verbose)
             self.sir.run(intervals[i], record = True)
         if compute_events:
-            for (j, event) in enumerate(self.events):
+            if events == None:
+                events = self.events
+            else:
+                events = [event for event in events if event in self.events]
+            for (j, event) in enumerate(events):
                 self.sir.compute_delayed_event(self.probas[event], self.delays[event], event)
                 
     def plot_delays(self, axs = None, legend = True):
