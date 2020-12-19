@@ -13,7 +13,7 @@ import numpy as np
 import fit_lockdown as lockdown
 
 CHANGE_INPUT = True
-COMPUTE_AGAIN = False
+COMPUTE_AGAIN = True
 
 class Change(Exception):
     pass
@@ -25,14 +25,14 @@ inputs = {
                [.2, .8],
                [8, 12]]}
 
-rho = np.log(2)/2.5
+rho = np.log(2)/16
 
 try:
     if CHANGE_INPUT:
         raise Change('input')
     param_values = np.loadtxt("param_values_R0.txt", float)
 except (OSError, Change):
-    param_values = saltelli.sample(inputs, 1000)
+    param_values = saltelli.sample(inputs, 10000)
     np.savetxt("param_values_R0.txt", param_values)
 
 try:
