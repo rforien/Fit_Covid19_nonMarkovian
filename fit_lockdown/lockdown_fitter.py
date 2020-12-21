@@ -195,6 +195,12 @@ class LockdownFitter(object):
             print('Mean delays in ' + self.name)
             for (i, event) in enumerate(self.events):
                 print(event + ': %.3f' % np.prod(self.param_delays[event].values))
+        if not hasattr(self, 'dates_of_change'):
+            self.dates_of_change = {}
+            for (i, fit) in enumerate(self.fits):
+                if i > 0:
+                    self.dates_of_change[fit.name] = fit.start
+        
     
     def adjust_date_of_change(self, fit_name, event):
         assert hasattr(self, 'param_delays')
@@ -246,11 +252,6 @@ class LockdownFitter(object):
         assert ref_event in self.events
         if verbose:
             print('Running SEIR model in ' + self.name)
-        if not hasattr(self, 'dates_of_change'):
-            self.dates_of_change = {}
-            for (i, fit) in enumerate(self.fits):
-                if i > 0:
-                    self.dates_of_change[fit.name] = fit.start
         intervals = self.compute_intervals([date for date in self.dates_of_change.values()], end_of_run)
         self.build_delays()
         self.sir.calibrate(self.cumul_at_lockdown(ref_event), self.probas[ref_event],
