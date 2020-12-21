@@ -15,13 +15,15 @@ import build_patches
 import fit_lockdown as lockdown
 import datetime as date
 
+import time
+
 region_list = [['Île de France']]
 names = ['Île de France']
 
 
 event = 'Hospital deaths'
 
-CHANGE_INPUT = True
+CHANGE_INPUT = False
 COMPUTE_AGAIN = True
 
 class Change(Exception):
@@ -41,11 +43,11 @@ try:
         raise Change('input')
     param_values = np.loadtxt("param_values_delays.txt", float)
 except (OSError, Change):
-    param_values = saltelli.sample(inputs, 5)
+    param_values = saltelli.sample(inputs, 1000, calc_second_order = False)
     np.savetxt("param_values_delays.txt", param_values)
 
 try:
-    if COMPUTE_AGAIN:
+    if COMPUTE_AGAIN or CHANGE_INPUT:
         raise Change('output')
     output_values = np.loadtxt('output_values_delays.txt', float)
 except (OSError, Change):
@@ -60,15 +62,26 @@ except (OSError, Change):
     fitter.compute_growth_rates()
     
     for (i, param) in enumerate(param_values):
-        E_dist, I_dist = lockdown.EI_dist(param[0], param[1], 10, n=30)
+        print(100.*i/np.size(param_values, 0))
+        E_dist, I_dist = lockdown.EI_dist(param[0], param[1], 10, n=10)
         EI_dist = lockdown.product_dist(E_dist, I_dist)
         lockdown_datetime = fitter.datetime_lockdown + date.timedelta(days = param[2])
         fitter.datetime_lockdown = lockdown_datetime
-        fitter.prepare_sir(EI_dist, param[3], verbose = False)
+        try:
+            fitter.prepare_sir(EI_dist, param[3], verbose = False)
+        except AssertionError:
+            continue
+        fitter.dates_of_change['Lockdown'] = lockdown_datetime.strftime(fitter.date_format)
         output_values[0,i] = fitter.param_delays[event].product()
-        fitter.compute_sir(EI_dist, param[3], '2020-05-11', verbose = False, compute_events = False)
+        try:
+            fitter.compute_sir(EI_dist, param[3], '2020-05-11', verbose = True, compute_events = False)
+        except AssertionError:
+            continue
         output_values[1,i] = 1-fitter.sir.Z[0]
         
     np.savetxt('output_values_delays.txt', output_values)
     
-Sobol_indices = sobol.analyze(inputs, output_values, print_to_console = True)
+print("Mean delay between infection and deaths")
+Sobol_indices_delay_death = sobol.analyze(inputs, output_values[0,:], print_to_console = True, calc_second_order = False)
+print("Immunity")
+Sobol_indices_immunity = sobol.analyze(inputs, output_values[1,:], print_to_console = True, calc_second_order = False)

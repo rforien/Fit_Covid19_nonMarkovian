@@ -333,7 +333,7 @@ class SIR_nonMarkov(SIR_lockdown):
     def R0(self):
         return self.l*self.EI()
     
-    def run(self, T, dt = .005, record = True):
+    def run(self, T, dt = .01, record = True):
         n = int(T/dt)
         if hasattr(self, 'times'):
             assert dt == self.times[1]-self.times[0]
