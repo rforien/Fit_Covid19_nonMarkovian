@@ -41,7 +41,7 @@ try:
         raise Change('input')
     param_values = np.loadtxt("param_values_delays.txt", float)
 except (OSError, Change):
-    param_values = saltelli.sample(inputs, 5)
+    param_values = saltelli.sample(inputs, 3)
     np.savetxt("param_values_delays.txt", param_values)
 
 try:

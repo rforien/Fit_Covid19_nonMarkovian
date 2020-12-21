@@ -13,7 +13,9 @@ import fit_lockdown as lockdown
 rho = np.linspace(-.6, 1, 200)
 
 
-EI_covid = lockdown.EI_dist_covid(.6, fixed_E = False, n = 50)
+# EI_covid = lockdown.EI_dist_covid(.6, fixed_E = False, n = 50)
+E_covid, I_covid = lockdown.EI_dist(2, .7, 15, n = 30)
+EI_covid = lockdown.product_dist(E_covid, I_covid)
 
 incub = np.sum(EI_covid[:,0]*EI_covid[:,2])
 infect = np.sum(EI_covid[:,1]*EI_covid[:,2])
@@ -72,7 +74,7 @@ plt.legend(loc = 'best')
 plt.grid(True)
 plt.ylabel(r'$R_0$')
 plt.xlabel(r'growth rate ($\rho$)')
-plt.xlim((-.06, .3))
-plt.ylim((0, 7))
+plt.xlim((-.1, .4))
+plt.ylim((0, 10))
 #plt.ylim((1e-3, 2e2))
 plt.tight_layout(True)

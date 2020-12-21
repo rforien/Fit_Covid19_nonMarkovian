@@ -222,7 +222,7 @@ class LockdownFitter(object):
     
     def compute_intervals(self, dates_of_change, end_of_run):
         intervals = np.zeros(np.size(dates_of_change))
-        date_end = date.datetime.strftime(end_of_run, self.date_format)
+        date_end = date.datetime.strptime(end_of_run, self.date_format)
         for (j, d1) in enumerate(dates_of_change):
             d2 = np.concatenate((dates_of_change, [end_of_run]))[j+1]
             d2 = date.datetime.strptime(d2, self.date_format)
@@ -239,8 +239,9 @@ class LockdownFitter(object):
             p = self.param_delays[event]
             self.delays[event] = fit_lockdown.gamma_dist(p['k'], p['theta'])
     
-    def compute_sir(self, EI_dist, p_ref, end_of_run, ref_event = 'Hospital deaths', verbose = True, compute_events = True, events = None):
+    def compute_sir(self, end_of_run, EI_dist = None, p_ref = None, ref_event = 'Hospital deaths', verbose = True, compute_events = True, events = None):
         if not hasattr(self, 'param_delays') or not hasattr(self, 'sir') or not hasattr(self, 'probas'):
+            assert EI_dist and p_ref
             self.prepare_sir(EI_dist, p_ref, ref_event, verbose)
         assert ref_event in self.events
         if verbose:
@@ -252,7 +253,8 @@ class LockdownFitter(object):
                     self.dates_of_change[fit.name] = fit.start
         intervals = self.compute_intervals([date for date in self.dates_of_change.values()], end_of_run)
         self.build_delays()
-        self.sir.calibrate(self.cumul_at_lockdown(ref_event), p_ref, self.delays[ref_event])
+        self.sir.calibrate(self.cumul_at_lockdown(ref_event), self.probas[ref_event],
+                           self.delays[ref_event])
         self.sir.run_up_to_lockdown(verbose = verbose)
         for (i, key) in enumerate(self.dates_of_change):
             if verbose:
