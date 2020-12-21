@@ -43,11 +43,7 @@ try:
         raise Change('input')
     param_values = np.loadtxt("param_values_delays.txt", float)
 except (OSError, Change):
-<<<<<<< HEAD
-    param_values = saltelli.sample(inputs, 3)
-=======
     param_values = saltelli.sample(inputs, 1000, calc_second_order = False)
->>>>>>> phare/hp
     np.savetxt("param_values_delays.txt", param_values)
 
 try:
