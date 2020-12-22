@@ -9,9 +9,13 @@ Created on Sun Dec 13 15:35:59 2020
 import numpy as np
 import matplotlib.pyplot as plt
 
-from gather_data import gather_data
+from gather_data import gather_hosp_data
 import build_patches
 import fit_lockdown as lockdown
+
+hosp_file = 'donnees-hospitalieres-covid19-2020-12-19-19h03_corrected.csv'
+daily_hosp_file = 'donnees-hospitalieres-nouveaux-covid19-2020-12-19-19h03.csv'
+
 
 # region_list = [['Île de France']]
 # names = ['Île de France']
@@ -36,7 +40,7 @@ patches, sizes = build_patches.patches_from_region_list(region_list)
 
 francais= True
 
-data_patches = gather_data(patches, SOS_medecins=False, include_early=False)
+data_patches = [gather_hosp_data(patch, hosp_file, daily_hosp_file) for patch in patches]
 
 fitters = []
 for (i, name) in enumerate(names):

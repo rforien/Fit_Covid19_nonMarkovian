@@ -143,7 +143,7 @@ class MultiFitter(object):
             time[i] = (day-self.ref_datetime).days
         return time
     
-    def plot(self, axes = None, fits = None, francais = False, nb_xticks = 5):
+    def plot(self, axes = None, fits = None, francais = False, nb_xticks = 5, legend = True):
         assert nb_xticks > 0
         tick_interval = int((self.date_to_time([self.cumul.index[-1]])-
                              self.date_to_time([self.cumul.index[0]]))/nb_xticks)
@@ -184,7 +184,8 @@ class MultiFitter(object):
                         line.set_label(fit + r': $t_{1/2}$ = %.1f' % (-np.log(2)/self.rates[fit]) + days)
                     k += 1
         axes.set_yscale('log')
-        axes.legend(loc = 'best')
+        if legend:
+            axes.legend(loc = 'best')
         axes.grid(True)
         axes.set_xticks(self.date_to_time(self.cumul.index[0::tick_interval]))
         axes.set_xticklabels(self.cumul.index[0::tick_interval])

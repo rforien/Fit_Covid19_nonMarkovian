@@ -110,7 +110,7 @@ class LockdownFitter(object):
             print('Growth rates in ' + self.name)
             print(self.rates)
     
-    def plot_fit(self, axs = None, francais = False, nb_xticks = 5):
+    def plot_fit(self, axs = None, francais = False, nb_xticks = 5, legend = True):
         if not axs:
             fig = plt.figure(dpi = self.dpi)
             self.axs = plt.axes()
@@ -118,8 +118,10 @@ class LockdownFitter(object):
             self.axs = axs
             fig = None
         self.axs.set_title(self.name)
-        data_lines = self.fitter.plot(self.axs, francais = francais, nb_xticks = nb_xticks)
-        self.axs.legend(loc='best')
+        data_lines = self.fitter.plot(self.axs, francais = francais, 
+                                      nb_xticks = nb_xticks, legend = legend)
+        if legend:
+            self.axs.legend(loc='best')
         if fig:
             fig.set_tight_layout(True)
         return data_lines
@@ -130,6 +132,7 @@ class LockdownFitter(object):
             return self.fitter.fit_value_at(event, init_phase, self.datetime_lockdown.strftime(self.date_format))
         else:
             first_day = self.data[event].first_valid_index()
+            # first_day = '2020-03-20'
             cumul_first_day = self.data[event][first_day]
             difference = (date.datetime.strptime(first_day, self.date_format)-self.datetime_lockdown).days
             return cumul_first_day*np.exp(-self.rates[init_phase]*difference)
@@ -231,11 +234,10 @@ class LockdownFitter(object):
         date_end = date.datetime.strptime(end_of_run, self.date_format)
         for (j, d1) in enumerate(dates_of_change):
             d2 = np.concatenate((dates_of_change, [end_of_run]))[j+1]
-            d2 = date.datetime.strptime(d2, self.date_format)
-            if (d2-date_end).days <= 0:
-                d2 = date_end
-            d1 = date.datetime.strptime(d1, self.date_format)
-            intervals[j] = np.maximum((d2-d1).days, 0)
+            date2 = date.datetime.strptime(d2, self.date_format)
+            date1 = date.datetime.strptime(d1, self.date_format)
+            intervals[j] = np.maximum(np.minimum((date2-date1).days,
+                                                 (date_end-date1).days), 0)
         return intervals
     
     def build_delays(self):

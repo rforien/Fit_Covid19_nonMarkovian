@@ -17,7 +17,7 @@ data_sos_file = 'sursaud-corona-quot-dep-2020-09-23-19h15_corrected.csv'
 
 # data_age = 'donnees-hospitalieres-classe-age-covid19-2020-10-27-19h00.csv'
 
-# columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
+columns = ['Hospital admissions', 'Hospital deaths', 'ICU admissions', 'SOS Medecins actions']
 
 def correct_hosp_data(hosp_file):
     data = pd.read_csv(hosp_file, delimiter = ';')

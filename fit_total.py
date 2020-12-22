@@ -39,8 +39,8 @@ patches, sizes = patches_from_region_list(region_list)
 
 francais= True
 
-# patches, sizes = split_region("Provence-Alpes-Côte d’Azur")
-# names = [patch[0] for patch in patches]
+patches, sizes = split_region("Grand Est")
+names = [patch[0] for patch in patches]
 
 
 # patchIDF, sizeIDF = patches_from_regions(['Île de France'])
@@ -55,15 +55,15 @@ data_patches = gather_data(patches, SOS_medecins=False, include_early=False)
 fit_total = lockdown.FitPatches(data_patches, names, sizes)
 
 ## sans second confinement
-fit_total.dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-09-01']
+fit_total.dates_of_change = ['2020-03-16']
 fit_total.start_fit_init = '2020-03-19'
-fit_total.dates_end_fit = ['2020-05-11', '2020-06-15',  '2020-09-12', '2020-10-30']
+fit_total.dates_end_fit = ['2020-05-11']
 if francais:
-    fit_total.names_fit = ['confinement', 'déconfinement (avant le 2 juin)', 'après le 2 juin', 'deuxieme vague']
+    fit_total.names_fit = ['confinement']
 else:
-    fit_total.names_fit = ['1st lockdown', 'easing of lockdown (before June 2nd)', 'after June 2nd', 'second wave']
-fit_total.delays = np.array([[18, 28, 28], [10, 15, 15], [10, 15, 15], [10, 15, 15]])
-fit_total.fit_columns = [None, None, None, None] # None means all columns
+    fit_total.names_fit = ['1st lockdown']
+fit_total.delays = np.array([[18, 28, 28]])
+fit_total.fit_columns = [None] # None means all columns
 
 # ## avec second confinement
 # fit_total.dates_of_change = ['2020-03-16', '2020-05-11', '2020-06-02', '2020-07-10', '2020-10-30']
@@ -88,15 +88,15 @@ fit_total.plot_fit_lockdown(francais = francais)
 # fit_total.rE = np.vstack((fit_total.rE, [fit_total.rE[0]]))
 # print(fit_total.rE)
 
-fit_total.prepare_sir(.8, .003)
-if francais:
-    fit_total.adjust_dates_of_change('après le 2 juin', 'Hospital admissions')
-else:
-    fit_total.adjust_dates_of_change('second wave', 'Hospital admissions')
-fit_total.compute_sir(.8, .003, '2021-05-31')
-fit_total.sir[0].plot()
-fit_total.plot_events(logscale=False)
-fit_total.plot_events(daily = False, logscale = False)
+# fit_total.prepare_sir(.8, .003)
+# if francais:
+#     fit_total.adjust_dates_of_change('après le 2 juin', 'Hospital admissions')
+# else:
+#     fit_total.adjust_dates_of_change('second wave', 'Hospital admissions')
+# fit_total.compute_sir(.8, .003, '2021-05-31')
+# fit_total.sir[0].plot()
+# fit_total.plot_events(logscale=False)
+# fit_total.plot_events(daily = False, logscale = False)
 
 #fit_total.plot_fit_init(France, .6, .005)
 # fit_total.plot_markov_vs_nonmarkov(.8, .005, logscale = False)
